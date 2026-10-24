@@ -78,7 +78,7 @@ def install():
 
 
 def make_zip():
-    files = {"資料箱.exe": DIST_EXE, "README.txt": HERE / "README.txt",
+    files = {"資料箱.exe": DIST_EXE, "README.txt": HERE / "README.txt", "更新履歴.txt": HERE / "更新履歴.txt",
              "THIRD_PARTY_LICENSES.txt": HERE / "THIRD_PARTY_LICENSES.txt"}
     tmp = ZIP.with_suffix(".tmp")
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
