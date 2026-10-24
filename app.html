@@ -52,6 +52,8 @@ header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var
 .card:hover{border-color:var(--line)}
 .card.sel{border-color:var(--accent)}
 .card img{display:block;width:100%;height:auto;background:#0002;min-height:40px}
+/* ライブラリを白黒で見る (表示だけ。画像ファイルは変えない) */
+#grid.gray .card img,#grid.gray .card .pal,#grid.gray .card .sw{filter:grayscale(1)}
 .card .pal{display:flex;height:8px}
 .card .pal i{flex:1}
 .card .meta{display:flex;align-items:center;gap:6px;padding:6px 8px}
@@ -190,6 +192,7 @@ body.popup .hint,body.popup #popBtn{display:none}
       <button data-cmode="code" title="カラーコードや数値で、具体的な色を含む資料を探す">カラーコード</button>
     </span>
     <button id="tagBtn" title="タグの一覧を出して、タグで絞り込む">🏷 タグ</button>
+    <button id="libGray" title="ライブラリの資料を全部白黒で表示する(画像ファイルは変わりません)">白黒</button>
     <div class="spacer"></div>
     <span class="muted">サイズ</span>
     <input id="size" type="range" min="120" max="420" value="220">
@@ -292,6 +295,7 @@ const S = {
   fmt: lsGet('fmt') || 'hex', pin: params.get('pin') === '1',
   cmode: 'off', fam: null, famMin: Math.min(80, Math.max(1, +lsGet('famMin') || 20)),
   tagSel: new Set(), tagPanel: false, tagEdit: false,
+  libGray: lsGet('libGray') === '1',
   formats: ['.png','.jpg','.jpeg','.gif','.webp','.bmp'], profile: '簡易換算',
 };
 function lsGet(k){ try { return localStorage.getItem('shiryo.'+k); } catch(e){ return null; } }
@@ -702,6 +706,12 @@ function renderPTags(it){
     `<span class="tagchip" data-tag="${esc(t)}" title="このタグで絞り込む">#${esc(t)}<button class="x" data-rm="${esc(t)}" title="このタグを外す">×</button></span>`).join('')
     || '<span class="muted">タグはまだありません</span>';
 }
+function renderLibGray(){
+  $('#grid').classList.toggle('gray', S.libGray);
+  $('#libGray').classList.toggle('on', S.libGray);
+}
+$('#libGray').onclick = () => { S.libGray = !S.libGray; lsSet('libGray', S.libGray ? '1' : '0'); renderLibGray(); };
+renderLibGray();
 $('#tagBtn').onclick = () => { S.tagPanel = !S.tagPanel; if (!S.tagPanel){ S.tagEdit = false; } renderTagRow(); };
 $('#tagOff').onclick = () => { S.tagSel.clear(); S.tagPanel = false; S.tagEdit = false; renderTagRow(); renderGrid(); };
 $('#tagEdit').onclick = () => { S.tagEdit = !S.tagEdit; renderTagRow(); };
@@ -771,7 +781,7 @@ $('#grid').addEventListener('click', e => {
   card.classList.toggle('sel', S.sel.has(id)); renderSelbar();
 });
 $('#grid').addEventListener('dblclick', e => {
-  const card = e.target.closest('.card'); if (card && !e.target.closest('button,[data-color]')) openPreview(card.dataset.id);
+  const card = e.target.closest('.card'); if (card && !e.target.closest('button,[data-color],[data-tag]')) openPreview(card.dataset.id, S.libGray);
 });
 $('#q').addEventListener('input', e => { S.q = e.target.value; renderGrid(); });
 $('#colorIn').addEventListener('input', e => setColor(e.target.value));
