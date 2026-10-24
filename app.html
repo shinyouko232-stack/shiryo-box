@@ -11,6 +11,7 @@
   --size:220px;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}  /* .toolbar などの display 指定に負けないように */
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
   font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;font-size:14px}
 button,input,select{font:inherit;color:inherit}
@@ -55,6 +56,22 @@ header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var
 .card .pal i{flex:1}
 .card .meta{display:flex;align-items:center;gap:6px;padding:6px 8px}
 .card .name{flex:1;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* タグ */
+.card .ctags{display:flex;flex-wrap:wrap;gap:4px;padding:0 8px 7px}
+.tagchip{display:inline-flex;align-items:center;gap:4px;font-size:11px;line-height:18px;padding:0 7px;border-radius:999px;
+  background:var(--panel2);border:1px solid var(--line);color:var(--text);cursor:pointer;white-space:nowrap}
+.tagchip:hover{border-color:var(--accent)}
+.tagchip.on{background:var(--accent2);border-color:var(--accent2);color:#1b1408}
+.tagchip b{font-weight:400;color:var(--muted)}
+.tagchip.on b{color:#5a4320}
+.tagchip .x{border:none;background:none;padding:0 0 0 2px;color:inherit;opacity:.7;font-size:12px;line-height:1}
+.tagchip .x:hover{opacity:1;color:var(--danger)}
+#tagRow .tagchip{font-size:13px;line-height:24px;padding:0 10px}
+.taglist{display:flex;flex-wrap:wrap;gap:5px;flex:1;min-width:0;max-height:96px;overflow:auto}
+.ptags{display:flex;flex-wrap:wrap;gap:5px}
+.tagadd{display:flex;gap:6px}
+.tagadd input{flex:1;min-width:0}
+#selbar input[type=text]{width:130px}
 .card .sw{display:flex;gap:3px}
 .card .sw i{width:12px;height:12px;border-radius:50%;border:1px solid #0006;cursor:pointer}
 .card .sw i:hover{transform:scale(1.4)}
@@ -172,12 +189,20 @@ body.popup .hint,body.popup #popBtn{display:none}
       <button data-cmode="rough" title="「緑っぽい色が◯%以上」のように、色の系統で絞り込む">大まか</button>
       <button data-cmode="code" title="カラーコードや数値で、具体的な色を含む資料を探す">カラーコード</button>
     </span>
+    <button id="tagBtn" title="タグの一覧を出して、タグで絞り込む">🏷 タグ</button>
     <div class="spacer"></div>
     <span class="muted">サイズ</span>
     <input id="size" type="range" min="120" max="420" value="220">
     <button id="pickFiles" class="primary">＋ 画像を追加</button>
     <input id="fileIn" type="file" accept="image/*" multiple hidden>
   </div>
+  <div id="tagRow" class="toolbar" hidden>
+    <div id="tagList" class="taglist"></div>
+    <span id="tagResult" class="muted"></span>
+    <button id="tagEdit" title="タグを全部の資料から外す(タグの削除)">整理</button>
+    <button id="tagOff" title="タグでの絞り込みをやめる">× タグ検索をやめる</button>
+  </div>
+  <datalist id="tagSuggest"></datalist>
   <div id="colorRow" class="toolbar" hidden>
     <span id="roughCtl" class="rough">
       <span id="famChips" class="famchips"></span>
@@ -228,6 +253,9 @@ body.popup .hint,body.popup #popBtn{display:none}
   <span id="selCount"></span>
   <button id="selBoard" class="primary">ボードに追加</button>
   <select id="selBoardSel"></select>
+  <input id="selTagIn" type="text" list="tagSuggest" placeholder="タグ" title="選んだ資料に付ける / 外すタグ (カンマ区切りで複数)">
+  <button id="selTagAdd" title="選んだ資料にタグを付ける">タグ付け</button>
+  <button id="selTagDel" title="選んだ資料からタグを外す">タグを外す</button>
   <button id="selDel" class="danger">削除</button>
   <button id="selClear">選択解除</button>
 </div>
@@ -238,6 +266,9 @@ body.popup .hint,body.popup #popBtn{display:none}
     <div class="muted">名前</div>
     <input id="pName" type="text">
     <div id="pInfo" class="muted"></div>
+    <div class="muted">タグ(クリックで絞り込み)</div>
+    <div id="pTags" class="ptags"></div>
+    <div class="tagadd"><input id="pTagIn" type="text" list="tagSuggest" placeholder="タグを追加 (Enter)"><button id="pTagAdd">追加</button></div>
     <button id="pGray" title="白黒にして、白〜黒の割合を見る">白黒で見る</button>
     <div id="pPalTitle" class="muted">この画像の色(クリックで色検索)</div>
     <div id="pPal" class="bigpal"></div>
@@ -260,6 +291,7 @@ const S = {
   sel: new Set(), q: '', color: null, preview: null,
   fmt: lsGet('fmt') || 'hex', pin: params.get('pin') === '1',
   cmode: 'off', fam: null, famMin: Math.min(80, Math.max(1, +lsGet('famMin') || 20)),
+  tagSel: new Set(), tagPanel: false, tagEdit: false,
   formats: ['.png','.jpg','.jpeg','.gif','.webp','.bmp'], profile: '簡易換算',
 };
 function lsGet(k){ try { return localStorage.getItem('shiryo.'+k); } catch(e){ return null; } }
@@ -367,11 +399,51 @@ function setColor(h, fromNums){
 }
 
 // ---------- color extraction (in browser) ----------
+// 色の解析方式の版。変えたら既存の資料も起動時に解析し直す
+const COLOR_VER = 2;
+// 重み付き k-means。初期値は「重み × 今ある中心からの距離²」が最大の色を順に選ぶので、毎回同じ結果になる
+function kmeans(items, k, dist){
+  if (!items.length) return [];
+  const cent = [items.reduce((a, b) => b.w > a.w ? b : a).v];
+  while (cent.length < Math.min(k, items.length)){
+    let best = null, bs = -1;
+    for (const t of items){ const s = t.w * Math.min(...cent.map(c => dist(t.v, c))) ** 2; if (s > bs){ bs = s; best = t; } }
+    cent.push(best.v);
+  }
+  let groups;
+  for (let it = 0; it < 12; it++){
+    groups = cent.map(() => []);
+    for (const t of items){
+      let j = 0, bd = Infinity;
+      cent.forEach((c, i) => { const d = dist(t.v, c); if (d < bd){ bd = d; j = i; } });
+      groups[j].push(t);
+    }
+    groups = groups.filter(g => g.length);
+    cent.length = 0;
+    for (const g of groups){
+      const n = g.reduce((s, t) => s + t.w, 0);
+      cent.push(g[0].v.map((_, d) => g.reduce((s, t) => s + t.v[d]*t.w, 0) / n));
+    }
+  }
+  return groups;
+}
+const sumW = g => g.reduce((s, t) => s + t.w, 0);
+const meanRgb = g => { const n = sumW(g); return [0,1,2].map(d => g.reduce((s, t) => s + t.rgb[d]*t.w, 0) / n); };
+// 色味のあるグループの代表色は、鮮やかさが上位半分の画素の平均にする。
+// 全体の平均だと影の暗い部分に引っ張られて、その色らしさが消える (割合はグループ全体で数える)
+function vividRgb(g){
+  const sorted = [...g].sort((a, b) => Math.hypot(b.v[1], b.v[2]) - Math.hypot(a.v[1], a.v[2]));
+  const half = sumW(g) / 2, top = [];
+  let acc = 0;
+  for (const t of sorted){ top.push(t); acc += t.w; if (acc >= half) break; }
+  return meanRgb(top);
+}
 function extractColors(img){
-  const max = 80, sc = Math.min(1, max/Math.max(img.naturalWidth, img.naturalHeight));
+  // 縮小時にぼかすと細いアクセント色がグレーと混ざって濁るので、元の画素をそのまま拾う
+  const max = 160, sc = Math.min(1, max/Math.max(img.naturalWidth, img.naturalHeight));
   const w = Math.max(1, Math.round(img.naturalWidth*sc)), h = Math.max(1, Math.round(img.naturalHeight*sc));
   const c = document.createElement('canvas'); c.width=w; c.height=h;
-  const ctx = c.getContext('2d', {willReadFrequently:true}); ctx.drawImage(img,0,0,w,h);
+  const ctx = c.getContext('2d', {willReadFrequently:true}); ctx.imageSmoothingEnabled = false; ctx.drawImage(img,0,0,w,h);
   const d = ctx.getImageData(0,0,w,h).data, bins = new Map(); let total = 0;
   for (let i=0;i<d.length;i+=4){
     if (d[i+3] < 128) continue;
@@ -379,15 +451,25 @@ function extractColors(img){
     let e = bins.get(k); if (!e){ e=[0,0,0,0]; bins.set(k,e); }
     e[0]+=d[i]; e[1]+=d[i+1]; e[2]+=d[i+2]; e[3]++; total++;
   }
-  const sorted = [...bins.values()].sort((a,b)=>b[3]-a[3]);
-  const pal = [];
-  for (const e of sorted){
+  // 色味のある色とグレー系を分けてからまとめる。一緒にまとめると、面積の大きいグレーに
+  // アクセント色が吸われて濁ったり、数えられずに消えたりする
+  const chrom = [], neut = [];
+  for (const e of bins.values()){
     const rgb = [e[0]/e[3], e[1]/e[3], e[2]/e[3]], lab = rgb2lab(rgb);
-    const near = pal.find(p => dE(p.lab, lab) < 14);
-    if (near){ near.n += e[3]; continue; }
-    if (pal.length < 10) pal.push({rgb, lab, n:e[3]});
+    (Math.hypot(lab[1], lab[2]) < 12 ? neut : chrom).push({v: lab, w: e[3], rgb});
   }
-  const colors = pal.sort((a,b)=>b.n-a.n).slice(0,6).filter(p=>p.n/total>0.01)
+  const cl = [
+    ...kmeans(chrom, 10, dE).map(g => ({rgb: vividRgb(g), n: sumW(g)})),
+    ...kmeans(neut.map(t => ({...t, v: [t.v[0]]})), 4, (a, b) => Math.abs(a[0] - b[0])).map(g => ({rgb: meanRgb(g), n: sumW(g)})),
+  ];
+  cl.forEach(c => c.lab = rgb2lab(c.rgb));
+  cl.sort((a, b) => b.n - a.n);
+  const pal = [];
+  for (const c of cl){
+    const near = pal.find(p => dE(p.lab, c.lab) < 12);
+    near ? near.n += c.n : pal.push(c);
+  }
+  const colors = pal.sort((a,b)=>b.n-a.n).filter(p=>p.n/total>=0.01).slice(0,10)
     .map(p => [...p.rgb.map(Math.round), +(p.n/total).toFixed(3)]);
   // 大まかな色の系統ごとの割合 (大まか検索用)
   const fc = {};
@@ -418,7 +500,7 @@ function famOf(r, g, b){
   if (h >= 15 && h < 50 && v < 0.55) return 'brown';
   if (h < 15 || h >= 345) return s < 0.45 && v > 0.7 ? 'pink' : 'red';
   if (h < 45) return 'orange';
-  if (h < 70) return 'yellow';
+  if (h < 63) return 'yellow';  // 黄緑 (ライム) は緑に入れる
   if (h < 165) return 'green';
   if (h < 200) return 'cyan';
   if (h < 255) return 'blue';
@@ -431,7 +513,7 @@ async function queueColors(){
   if (colorBusy) return; colorBusy = true;
   try {
     // 系統の割合 (fam) が無い資料は、前のバージョンで取り込んだもの。起動時に1回だけ解析し直す
-    for (const it of S.items.filter(i => !(i.colors && i.colors.length && i.fam) && !colorTried.has(i.id))){
+    for (const it of S.items.filter(i => !(i.colors && i.colors.length && i.fam && i.cv === COLOR_VER) && !colorTried.has(i.id))){
       colorTried.add(it.id);
       const res = await new Promise(res => {
         const im = new Image();
@@ -440,8 +522,8 @@ async function queueColors(){
         im.src = imgUrl(it);
       });
       if (res){
-        it.colors = res.colors; it.fam = res.fam;
-        api('/api/colors', {id: it.id, colors: res.colors, fam: res.fam}).catch(()=>{});
+        it.colors = res.colors; it.fam = res.fam; it.cv = COLOR_VER;
+        api('/api/colors', {id: it.id, colors: res.colors, fam: res.fam, cv: COLOR_VER}).catch(()=>{});
       } else { it.colors = it.colors || []; colorFailed.add(it.id); }
       updateCard(it);
       if (S.preview === it.id) renderPreviewPal(it);
@@ -490,7 +572,9 @@ function colorScore(it, target){
 function visibleItems(){
   let list = S.items;
   const q = S.q.trim().toLowerCase();
-  if (q) list = list.filter(i => i.name.toLowerCase().includes(q) || i.file.toLowerCase().includes(q));
+  if (q) list = list.filter(i => i.name.toLowerCase().includes(q) || i.file.toLowerCase().includes(q)
+    || (i.tags || []).some(t => t.toLowerCase().includes(q)));
+  if (S.tagSel.size) list = list.filter(tagMatch);
   if (S.cmode === 'rough' && S.fam){
     const share = i => (i.fam && i.fam[S.fam]) || 0;
     list = list.filter(i => share(i) >= S.famMin/100).sort((a,b) => share(b) - share(a));
@@ -522,6 +606,8 @@ function cardHTML(it){
     <div class="pal">${cols.map(c=>`<i style="background:${hex(c)};flex:${c[3]}"></i>`).join('')}</div>
     <div class="meta">${hitTag(it)}${itemTags(it).map(t=>`<span class="tag">${t}</span>`).join('')}<div class="name" title="${esc(it.name)}">${esc(it.name)}</div>
       <div class="sw">${cols.slice(0,5).map(c=>`<i data-color="${hex(c)}" style="background:${hex(c)}" title="この色で探す"></i>`).join('')}</div></div>
+    ${(it.tags || []).length ? `<div class="ctags">${it.tags.map(t =>
+      `<span class="tagchip${S.tagSel.has(t) ? ' on' : ''}" data-tag="${esc(t)}" title="このタグで絞り込む">#${esc(t)}</span>`).join('')}</div>` : ''}
     <button class="add" data-act="board" title="ボードに追加">＋</button>
     <div class="check">✓</div>`;
 }
@@ -540,6 +626,7 @@ function renderGrid(){
   else if (!list.length) empty.innerHTML = '<b>見つかりませんでした</b>検索ワードや色、「◯%以上」を変えてみてください。';
   renderChip();
   renderColorResult(list.length);
+  renderTagRow();
 }
 // 色検索の2段目 (大まか / カラーコード)
 function renderColorRow(){
@@ -564,6 +651,95 @@ function setColorMode(m){
   S.cmode = S.cmode === m ? 'off' : m;
   renderColorRow(); renderGrid();
 }
+
+// ---------- タグ ----------
+const NOTAG = ' none';  // 「タグなし」で絞り込む用。本物のタグは前後の空白を取るので先頭が空白にはならない
+// 選んだタグが全部付いている資料 (「タグなし」はタグが1つも無い資料)
+const tagMatch = i => [...S.tagSel].every(t => t === NOTAG ? !(i.tags || []).length : (i.tags || []).includes(t));
+// サーバーの clean_tags と同じ整え方
+const cleanTag = t => String(t).replace(/[\u0000-\u001f\u007f,、]/g, '').split(/\s+/).filter(Boolean).join(' ').slice(0, 40);
+const parseTags = s => [...new Set(String(s).split(/[,、]/).map(cleanTag).filter(Boolean))];
+function allTags(){
+  const m = new Map();
+  for (const it of S.items) for (const t of it.tags || []) m.set(t, (m.get(t) || 0) + 1);
+  return [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ja'));
+}
+async function applyTags(ids, add, remove){
+  if (!ids.length || !(add.length || remove.length)) return;
+  await api('/api/tags', {ids, add, remove});
+  for (const id of ids){
+    const it = byId(id); if (!it) continue;
+    const tags = (it.tags || []).filter(t => !remove.includes(t));
+    it.tags = [...tags, ...add.filter(t => !tags.includes(t))].slice(0, 50);
+  }
+  for (const t of remove) if (!S.items.some(i => (i.tags || []).includes(t))) S.tagSel.delete(t);
+  renderGrid(); renderTagRow(); notify();
+  if (S.preview) renderPTags(byId(S.preview));
+}
+function toggleTagFilter(t){
+  S.tagSel.has(t) ? S.tagSel.delete(t) : S.tagSel.add(t);
+  S.tagPanel = true; renderTagRow(); renderGrid();
+}
+function renderTagRow(){
+  const tags = allTags();
+  $('#tagSuggest').innerHTML = tags.map(([t]) => `<option value="${esc(t)}"></option>`).join('');
+  $('#tagBtn').classList.toggle('on', S.tagPanel || S.tagSel.size > 0);
+  $('#tagRow').hidden = !S.tagPanel;
+  if (!S.tagPanel) return;
+  const none = S.items.filter(i => !(i.tags || []).length).length;
+  const chip = (t, label, n) => `<span class="tagchip${S.tagSel.has(t) ? ' on' : ''}" data-tag="${esc(t)}">${label} <b>${n}</b>`
+    + (S.tagEdit && t !== NOTAG ? `<button class="x" data-del="${esc(t)}" title="このタグを全部の資料から外す">×</button>` : '') + '</span>';
+  $('#tagList').innerHTML = tags.length
+    ? tags.map(([t, n]) => chip(t, '#' + esc(t), n)).join('') + (none ? chip(NOTAG, 'タグなし', none) : '')
+    : '<span class="muted">まだタグがありません。資料をダブルクリックした画面や、複数選択した時の下のバーから付けられます。</span>';
+  $('#tagEdit').classList.toggle('on', S.tagEdit);
+  $('#tagEdit').textContent = S.tagEdit ? '整理を終える' : '整理';
+  $('#tagResult').textContent = S.tagSel.size ? `${visibleItems().length} 枚` : '';
+}
+function renderPTags(it){
+  if (!it) return;
+  $('#pTags').innerHTML = (it.tags || []).map(t =>
+    `<span class="tagchip" data-tag="${esc(t)}" title="このタグで絞り込む">#${esc(t)}<button class="x" data-rm="${esc(t)}" title="このタグを外す">×</button></span>`).join('')
+    || '<span class="muted">タグはまだありません</span>';
+}
+$('#tagBtn').onclick = () => { S.tagPanel = !S.tagPanel; if (!S.tagPanel){ S.tagEdit = false; } renderTagRow(); };
+$('#tagOff').onclick = () => { S.tagSel.clear(); S.tagPanel = false; S.tagEdit = false; renderTagRow(); renderGrid(); };
+$('#tagEdit').onclick = () => { S.tagEdit = !S.tagEdit; renderTagRow(); };
+$('#tagList').onclick = e => {
+  const del = e.target.closest('[data-del]');
+  if (del){
+    const t = del.dataset.del, ids = S.items.filter(i => (i.tags || []).includes(t)).map(i => i.id);
+    if (confirm(`タグ「${t}」を、付いている ${ids.length} 枚すべてから外しますか?(資料自体は消えません)`)) applyTags(ids, [], [t]);
+    return;
+  }
+  const c = e.target.closest('[data-tag]'); if (c) toggleTagFilter(c.dataset.tag);
+};
+// 詳細画面のタグ
+async function addPreviewTags(){
+  const it = byId(S.preview), add = parseTags($('#pTagIn').value);
+  if (!it || !add.length) return;
+  $('#pTagIn').value = '';
+  await applyTags([it.id], add, []);
+}
+$('#pTagAdd').onclick = addPreviewTags;
+$('#pTagIn').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing){ e.preventDefault(); addPreviewTags(); } });
+$('#pTags').onclick = e => {
+  const rm = e.target.closest('[data-rm]');
+  if (rm){ applyTags([S.preview], [], [rm.dataset.rm]); return; }
+  const c = e.target.closest('[data-tag]');
+  if (c){ closePreview(); if (S.view === 'board'){ S.view = 'library'; renderAll(); } toggleTagFilter(c.dataset.tag); }
+};
+// 複数選択のバーからまとめて
+async function selTags(adding){
+  const tags = parseTags($('#selTagIn').value), ids = [...S.sel];
+  if (!tags.length) return toast('付ける / 外すタグを入力してください');
+  await applyTags(ids, adding ? tags : [], adding ? [] : tags);
+  $('#selTagIn').value = '';
+  toast(`${ids.length} 枚${adding ? 'に' : 'から'}タグ「${tags.join('、')}」を${adding ? '付けました' : '外しました'}`);
+}
+$('#selTagAdd').onclick = () => selTags(true);
+$('#selTagDel').onclick = () => selTags(false);
+$('#selTagIn').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing){ e.preventDefault(); selTags(true); } });
 function renderChip(){
   const c = S.color;
   if (c && S.fmt === 'cmyk' && !cmykCache.has(c)) ensureCMYK([hexToRgb(c)]).then(() => { if (S.color === c) renderChip(); });
@@ -588,6 +764,8 @@ $('#grid').addEventListener('click', e => {
   const id = card.dataset.id;
   const sw = e.target.closest('[data-color]');
   if (sw){ setColor(sw.dataset.color); return; }
+  const tg = e.target.closest('[data-tag]');
+  if (tg){ toggleTagFilter(tg.dataset.tag); return; }
   if (e.target.closest('[data-act=board]')){ addToBoard([id]); return; }
   S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id);
   card.classList.toggle('sel', S.sel.has(id)); renderSelbar();
@@ -649,6 +827,7 @@ function openPreview(id, gray){
   $('#pImg').src = imgUrl(it); $('#pName').value = it.name;
   const tags = itemTags(it);
   $('#pInfo').textContent = it.file + (tags.length ? ' ・ ' + tags.join(' / ') + '(表示用に sRGB へ変換)' : '');
+  renderPTags(it); $('#pTagIn').value = '';
   setPreviewGray(!!gray);
   $('#preview').classList.add('show');
 }

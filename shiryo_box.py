@@ -240,6 +240,19 @@ def add_item(rel, name, added=None):
     return DB["items"][iid]
 
 
+MAX_TAGS = 50
+
+
+def clean_tags(tags):
+    """タグの文字列を整える (前後の空白・連続空白・制御文字・カンマを除き、40文字まで)"""
+    out = []
+    for t in tags if isinstance(tags, list) else []:
+        t = " ".join("".join(c for c in str(t) if c.isprintable() and c not in ",、").split())[:40]
+        if t and t not in out:
+            out.append(t)
+    return out[:MAX_TAGS]
+
+
 def unique_path(folder, filename):
     filename = "".join(c for c in os.path.basename(filename) if c not in '\\/:*?"<>|\0').strip()
     stem, ext = os.path.splitext(filename)
@@ -514,6 +527,16 @@ class Handler(BaseHTTPRequestHandler):
                         fam = body.get("fam")
                         if isinstance(fam, dict):  # 大まかな色の系統ごとの割合
                             it["fam"] = {str(k)[:16]: float(v) for k, v in list(fam.items())[:32]}
+                        if isinstance(body.get("cv"), int):  # 色の解析方式の版 (app.html の COLOR_VER)
+                            it["cv"] = body["cv"]
+                elif path == "/api/tags":  # 複数の資料にまとめてタグを付ける / 外す
+                    add, remove = clean_tags(body.get("add")), set(clean_tags(body.get("remove")))
+                    for iid in body.get("ids", []):
+                        it = DB["items"].get(iid)
+                        if it:
+                            tags = [t for t in it.get("tags", []) if t not in remove]
+                            tags += [t for t in add if t not in tags]
+                            it["tags"] = tags[:MAX_TAGS]
                 elif path == "/api/rename":
                     it = DB["items"].get(body.get("id"))
                     if it:
