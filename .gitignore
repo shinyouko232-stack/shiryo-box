@@ -1,0 +1,16 @@
+# 資料フォルダ (他人の絵が入るので絶対に載せない)
+library/
+**/library/
+
+# ビルド関連 (build_app で作り直せる)
+build/
+*.spec
+__pycache__/
+*.pyc
+
+# 配布物は GitHub のリリースに置く
+*.exe
+*.zip
+
+# ログ
+*.log

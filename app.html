@@ -1,0 +1,1083 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>資料箱</title>
+<style>
+:root{
+  --bg:#17161a; --panel:#211f25; --panel2:#2a2830; --line:#38353f;
+  --text:#ece8f0; --muted:#9a94a3; --accent:#f0a24b; --accent2:#ffcf8a; --danger:#e5636b;
+  --size:220px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;font-size:14px}
+button,input,select{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#1b1408;font-weight:600}
+button.on{background:var(--accent2);color:#1b1408;border-color:var(--accent2)}
+button.danger:hover{border-color:var(--danger);color:var(--danger)}
+input[type=text],select{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+input[type=text]:focus,select:focus{outline:none;border-color:var(--accent)}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);height:52px}
+.logo{font-weight:700;letter-spacing:.08em}
+.logo span{color:var(--accent)}
+.tabs{display:flex;gap:4px;margin-left:12px}
+.tabs button{border-radius:999px;padding:5px 16px;background:transparent;border-color:transparent;color:var(--muted)}
+.tabs button.active{background:var(--panel2);border-color:var(--line);color:var(--text)}
+.spacer{flex:1}
+.muted{color:var(--muted);font-size:12px}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--bg)}
+.colorpick{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:3px 8px}
+.colorpick input[type=color]{width:28px;height:24px;border:none;background:none;padding:0;cursor:pointer}
+.seg{display:inline-flex;align-items:center;gap:4px}
+.seg .muted{margin:0 2px 0 6px}
+.rough{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.famchips{display:inline-flex;flex-wrap:wrap;gap:4px}
+.famchips button{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;font-size:13px}
+.famchips i{width:12px;height:12px;border-radius:50%;border:1px solid #0007;display:inline-block}
+.famth{display:inline-flex;align-items:center;gap:6px}
+.famth b{color:var(--text);min-width:34px;text-align:right}
+.card .tag.hit{color:#1b1408;background:var(--accent2);border-color:var(--accent2)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 6px 3px 4px;border-radius:999px;background:var(--panel2);border:1px solid var(--accent)}
+.chip i{width:18px;height:18px;border-radius:50%;display:inline-block;border:1px solid #0006}
+.chip button{padding:0 6px;border:none;background:none}
+#libView{height:calc(100% - 52px);display:flex;flex-direction:column}
+#gridWrap{flex:1;overflow:auto;padding:14px 16px 90px}
+#grid{column-width:var(--size);column-gap:12px}
+.card{break-inside:avoid;margin:0 0 12px;background:var(--panel);border:2px solid transparent;border-radius:10px;overflow:hidden;position:relative;cursor:pointer}
+.card:hover{border-color:var(--line)}
+.card.sel{border-color:var(--accent)}
+.card img{display:block;width:100%;height:auto;background:#0002;min-height:40px}
+.card .pal{display:flex;height:8px}
+.card .pal i{flex:1}
+.card .meta{display:flex;align-items:center;gap:6px;padding:6px 8px}
+.card .name{flex:1;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .sw{display:flex;gap:3px}
+.card .sw i{width:12px;height:12px;border-radius:50%;border:1px solid #0006;cursor:pointer}
+.card .sw i:hover{transform:scale(1.4)}
+.card .add{position:absolute;top:6px;right:6px;opacity:0;padding:2px 9px;background:#000a;border-color:#fff3}
+.card:hover .add{opacity:1}
+.card .check{position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#1b1408;display:none;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.card.sel .check{display:flex}
+.empty{max-width:440px;margin:80px auto;text-align:center;color:var(--muted);line-height:1.9}
+.empty b{color:var(--text);font-size:18px;display:block;margin-bottom:8px}
+#selbar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:none;align-items:center;gap:8px;
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 10px;box-shadow:0 10px 30px #0008;z-index:20}
+#selbar.show{display:flex}
+#drop{position:fixed;inset:0;background:#f0a24b22;border:3px dashed var(--accent);display:none;align-items:center;justify-content:center;
+  font-size:22px;font-weight:700;color:var(--accent2);z-index:50;pointer-events:none}
+#drop.show{display:flex}
+#toast{position:fixed;right:16px;bottom:16px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;
+  opacity:0;transition:opacity .2s;z-index:60;pointer-events:none;max-width:360px}
+#toast.show{opacity:1}
+#preview{position:fixed;inset:0;background:#000d;display:none;z-index:40;padding:24px;gap:20px}
+#preview.show{display:flex}
+#preview .pimg{flex:1;display:flex;align-items:center;justify-content:center;min-width:0}
+#preview .pimg img{max-width:100%;max-height:100%;object-fit:contain}
+#preview aside{width:300px;background:var(--panel);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+#preview aside input{width:100%}
+.bigpal{display:flex;flex-direction:column;gap:6px}
+.bigpal div{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-family:ui-monospace,monospace}
+.bigpal i{width:28px;height:28px;border-radius:6px;border:1px solid #0006}
+.bigpal span.bar{height:6px;background:var(--line);border-radius:3px;flex:1;min-width:16px;overflow:hidden}
+.bigpal span.bar b{display:block;height:100%;background:var(--muted)}
+#preview.gray .pimg img{filter:grayscale(1)}
+/* ダブルクリックで画像が「選択」されると青いハイライトが乗るので、選択自体をさせない */
+#preview .pimg,#preview .pimg img,#stage{-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+body{-webkit-user-select:none;user-select:none}
+input,textarea{-webkit-user-select:text;user-select:text}
+#preview .pimg img::selection{background:transparent}
+.bigpal div.gray{cursor:default}
+.tone3{display:flex;height:24px;border-radius:6px;overflow:hidden;font-size:11px;font-weight:600;margin-bottom:4px}
+.tone3 span{display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;white-space:nowrap}
+@media (max-width:700px){  /* 別ウィンドウのボードなど狭い窓では縦に並べる */
+  #preview{flex-direction:column;padding:12px;gap:10px}
+  #preview .pimg{min-height:0}
+  #preview aside{width:auto;max-height:55%}
+}
+/* board */
+#boardView{height:calc(100% - 52px);display:none;flex-direction:column}
+/* 並べる: 左にライブラリ、右にボード */
+body.split #libView,body.split #boardView{position:absolute;top:52px;bottom:0;height:auto}
+body.split #libView{left:0;width:42%;border-right:1px solid var(--line)}
+body.split #boardView{left:42%;right:0}
+body.split #selbar{left:21%}
+#stage.dropping{outline:3px dashed var(--accent);outline-offset:-3px}
+#stage{flex:1;position:relative;overflow:hidden;background:
+  radial-gradient(circle,#ffffff10 1px,transparent 1px) 0 0/24px 24px, #121115;cursor:grab;touch-action:none}
+#stage.panning{cursor:grabbing}
+#world{position:absolute;left:0;top:0;transform-origin:0 0}
+#world.gray img{filter:grayscale(1)}
+/* ペン / 消しゴム */
+.tools{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;margin-left:8px}
+.pens{display:inline-flex;gap:4px;margin:0 2px}
+.pens button{width:20px;height:20px;padding:0;border-radius:50%;border:2px solid #0009}
+.pens button.on{outline:2px solid var(--accent2);outline-offset:1px}
+#ink{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
+#stage.draw-pen,#stage.draw-pen .bi{cursor:crosshair}
+#stage.draw-eraser,#stage.draw-eraser .bi{cursor:none}
+#stage.draw-pen .bacts,#stage.draw-pen .handle,#stage.draw-eraser .bacts,#stage.draw-eraser .handle{display:none!important}
+#eraserRing{position:absolute;display:none;border-radius:50%;border:1.5px solid #fff;box-shadow:0 0 0 1px #000b,inset 0 0 0 1px #000b;pointer-events:none;transform:translate(-50%,-50%)}
+#stage.draw-eraser:hover #eraserRing{display:block}
+.bi{position:absolute;user-select:none;cursor:move}
+.bi img{display:block;width:100%;height:auto;pointer-events:none;box-shadow:0 4px 18px #0007}
+.bi.flip img{transform:scaleX(-1)}
+/* --inv = 1/ズーム倍率。ボタンとつまみはズームしても同じ大きさに見せる */
+.bi .handle{position:absolute;right:-7px;bottom:-7px;width:16px;height:16px;border-radius:4px;background:var(--accent);opacity:0;cursor:nwse-resize;transform:scale(var(--inv,1))}
+/* 画像の真上にくっつけて置く (下の余白で画像とつなげ、移動中にホバーが切れないように) */
+.bi .bacts{position:absolute;bottom:100%;right:0;display:none;gap:4px;padding-bottom:6px;transform:scale(var(--inv,1));transform-origin:100% 100%}
+.bi .bacts button{padding:3px 10px;font-size:13px;background:#000c}
+.bi:hover .handle,.bi.active .handle{opacity:1}
+.bi:hover .bacts,.bi.active .bacts{display:flex}
+.bi.active{outline:2px solid var(--accent);outline-offset:2px}
+.nums{display:inline-flex;align-items:center;gap:4px}
+.nums label{display:inline-flex;align-items:center;gap:3px;color:var(--muted);font-size:12px}
+.nums input[type=text]{width:46px;padding:5px 6px;text-align:right;font-family:ui-monospace,monospace;font-size:12px}
+.nums input.hexin{width:84px;text-align:left}
+.tag{font-size:10px;line-height:16px;padding:0 5px;border-radius:4px;background:var(--panel2);color:var(--accent2);border:1px solid var(--line);flex:none}
+.apponly{display:none}
+body.app .apponly{display:revert}
+.hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--muted);pointer-events:none}
+body.popup header{display:none}
+body.popup #boardView{height:100%}
+body.popup .toolbar{padding:6px 8px;gap:4px}
+body.popup .toolbar button{padding:4px 8px;font-size:12px}
+body.popup .hint,body.popup #popBtn{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">資料<span>箱</span></div>
+  <div class="tabs">
+    <button id="tabLib" class="active">ライブラリ</button>
+    <button id="tabBoard">ボード</button>
+    <button id="tabSplit" title="ライブラリとボードを並べて、資料をドラッグでボードに置く">並べる</button>
+  </div>
+  <div class="spacer"></div>
+  <label class="muted" title="色の数値をどの形式で表示・入力するか">色の表記
+    <select id="fmt"><option value="hex">HEX</option><option value="rgb">RGB</option><option value="cmyk">CMYK</option><option value="hsb">HSB</option></select>
+  </label>
+  <span id="count" class="muted"></span>
+  <button id="folderBtn" class="apponly" title="資料フォルダをエクスプローラーで開く">📁 フォルダ</button>
+  <button id="reload" title="フォルダを読み直す">↻ 再読み込み</button>
+</header>
+
+<section id="libView">
+  <div class="toolbar">
+    <input id="q" type="text" placeholder="名前で検索…" style="width:200px">
+    <span class="seg"><span class="muted">色で探す</span>
+      <button data-cmode="rough" title="「緑っぽい色が◯%以上」のように、色の系統で絞り込む">大まか</button>
+      <button data-cmode="code" title="カラーコードや数値で、具体的な色を含む資料を探す">カラーコード</button>
+    </span>
+    <div class="spacer"></div>
+    <span class="muted">サイズ</span>
+    <input id="size" type="range" min="120" max="420" value="220">
+    <button id="pickFiles" class="primary">＋ 画像を追加</button>
+    <input id="fileIn" type="file" accept="image/*" multiple hidden>
+  </div>
+  <div id="colorRow" class="toolbar" hidden>
+    <span id="roughCtl" class="rough">
+      <span id="famChips" class="famchips"></span>
+      <label class="muted famth" title="その系統の色が、絵の中でこの割合以上ある資料だけ表示">
+        <input id="famMin" type="range" min="1" max="80" step="1"> <b id="famMinV"></b> 以上</label>
+    </span>
+    <span id="codeCtl" class="rough">
+      <label class="colorpick" title="色を選ぶと、その色を含む資料を探します">
+        <input id="colorIn" type="color" value="#f0a24b"> 色を選ぶ
+      </label>
+      <span id="colorNums" class="nums"></span>
+      <span id="colorChip"></span>
+    </span>
+    <div class="spacer"></div>
+    <span id="colorResult" class="muted"></span>
+    <button id="colorOff" title="色での絞り込みをやめる">× 色検索をやめる</button>
+  </div>
+  <div id="gridWrap"><div id="grid"></div><div id="empty" class="empty" hidden></div></div>
+</section>
+
+<section id="boardView">
+  <div class="toolbar">
+    <select id="boardSel"></select>
+    <button id="boardNew" title="新しいボード">＋</button>
+    <button id="boardDel" class="danger" title="このボードを削除">削除</button>
+    <span style="width:8px"></span>
+    <button id="grayBtn" title="白黒にして明暗を確認">白黒</button>
+    <button id="fitBtn" title="全部が見えるように">全体表示</button>
+    <button id="clearBtn" class="danger">クリア</button>
+    <span class="tools">
+      <button data-tool="move" class="on" title="画像の移動・サイズ変更 (Esc)">✋ 移動</button>
+      <button data-tool="pen" title="構造メモ用のペン">✏️ ペン</button>
+      <button data-tool="eraser" title="ペンの線だけを消します(絵は消えません)">消しゴム</button>
+      <span id="penColors" class="pens"></span>
+      <button id="penSize" title="ペンの太さ"></button>
+      <button id="inkClear" class="danger" title="このボードのペンの線を全部消す(Ctrl+Z で戻せます)">線を全消去</button>
+    </span>
+    <div class="spacer"></div>
+    <button id="pinBtn" class="apponly" title="このウィンドウを常に最前面に表示">📌 最前面</button>
+    <button id="popBtn" title="小さい別ウィンドウで開いて、お絵描きソフトの横に置く">別ウィンドウで開く</button>
+  </div>
+  <div id="stage"><div id="world"></div><div id="eraserRing"></div>
+    <div class="hint">ドラッグで移動 / 右下の■でサイズ変更 / 背景ドラッグでスクロール / ホイールでズーム / ライブラリの資料や画像をここにドロップで追加</div>
+  </div>
+</section>
+
+<div id="selbar">
+  <span id="selCount"></span>
+  <button id="selBoard" class="primary">ボードに追加</button>
+  <select id="selBoardSel"></select>
+  <button id="selDel" class="danger">削除</button>
+  <button id="selClear">選択解除</button>
+</div>
+
+<div id="preview">
+  <div class="pimg"><img id="pImg" alt="" draggable="false"></div>
+  <aside>
+    <div class="muted">名前</div>
+    <input id="pName" type="text">
+    <div id="pInfo" class="muted"></div>
+    <button id="pGray" title="白黒にして、白〜黒の割合を見る">白黒で見る</button>
+    <div id="pPalTitle" class="muted">この画像の色(クリックで色検索)</div>
+    <div id="pPal" class="bigpal"></div>
+    <div class="spacer"></div>
+    <button id="pBoard" class="primary">ボードに追加</button>
+    <button id="pDel" class="danger">削除(trashへ)</button>
+    <button id="pClose">閉じる (Esc)</button>
+  </aside>
+</div>
+
+<div id="drop">ここにドロップして追加</div>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const params = new URLSearchParams(location.search);
+const S = {
+  items: [], boards: {}, board: params.get('board') || 'メイン',
+  view: ['board','split'].includes(params.get('view')) ? params.get('view') : 'library',
+  sel: new Set(), q: '', color: null, preview: null,
+  fmt: lsGet('fmt') || 'hex', pin: params.get('pin') === '1',
+  cmode: 'off', fam: null, famMin: Math.min(80, Math.max(1, +lsGet('famMin') || 20)),
+  formats: ['.png','.jpg','.jpeg','.gif','.webp','.bmp'], profile: '簡易換算',
+};
+function lsGet(k){ try { return localStorage.getItem('shiryo.'+k); } catch(e){ return null; } }
+function lsSet(k,v){ try { localStorage.setItem('shiryo.'+k, v); } catch(e){} }
+if (params.get('popup')) document.body.classList.add('popup');
+const chan = 'BroadcastChannel' in window ? new BroadcastChannel('shiryo-box') : null;
+
+// ---------- utils ----------
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hex = ([r,g,b]) => '#' + [r,g,b].map(v => Math.round(v).toString(16).padStart(2,'0')).join('');
+const hexToRgb = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+const imgUrl = it => '/img/' + it.file.split('/').map(encodeURIComponent).join('/');
+const byId = id => S.items.find(i => i.id === id);
+let toastT;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600); }
+async function api(path, body){
+  const r = await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+  const j = await r.json(); if (j.error) throw new Error(j.error); return j;
+}
+function rgb2lab([r,g,b]){
+  [r,g,b] = [r,g,b].map(v => { v/=255; return v>0.04045 ? ((v+0.055)/1.055)**2.4 : v/12.92; });
+  let x=(r*0.4124+g*0.3576+b*0.1805)/0.95047, y=(r*0.2126+g*0.7152+b*0.0722), z=(r*0.0193+g*0.1192+b*0.9505)/1.08883;
+  const f = t => t>0.008856 ? Math.cbrt(t) : 7.787*t+16/116;
+  x=f(x); y=f(y); z=f(z);
+  return [116*y-16, 500*(x-y), 200*(y-z)];
+}
+const dE = (a,b) => Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]);
+
+// ---------- color formats (HEX / RGB / CMYK / HSB) ----------
+const cmykCache = new Map();  // '#rrggbb' -> [c,m,y,k] (サーバーで ICC プロファイル変換)
+function naiveCMYK([r,g,b]){
+  [r,g,b] = [r,g,b].map(v => v/255); const k = 1 - Math.max(r,g,b);
+  return k >= 1 ? [0,0,0,100] : [...[r,g,b].map(v => Math.round((1-v-k)/(1-k)*100)), Math.round(k*100)];
+}
+async function ensureCMYK(rgbs){
+  const need = [...new Set(rgbs.map(hex))].filter(h => !cmykCache.has(h));
+  if (!need.length) return;
+  try {
+    const j = await api('/api/convert', {to:'cmyk', colors: need.map(hexToRgb)});
+    need.forEach((h,i) => cmykCache.set(h, j.colors[i]));
+  } catch(e){ need.forEach(h => cmykCache.set(h, naiveCMYK(hexToRgb(h)))); }
+}
+async function cmykToHex(cmyk){
+  try { const j = await api('/api/convert', {to:'rgb', colors:[cmyk]}); const h = hex(j.colors[0]); cmykCache.set(h, cmyk); return h; }
+  catch(e){ return hex(cmyk.slice(0,3).map(v => 255*(1-v/100)*(1-cmyk[3]/100))); }
+}
+function rgb2hsb([r,g,b]){
+  [r,g,b] = [r,g,b].map(v => v/255);
+  const mx = Math.max(r,g,b), d = mx - Math.min(r,g,b);
+  let h = 0;
+  if (d) h = mx===r ? ((g-b)/d + 6) % 6 : mx===g ? (b-r)/d + 2 : (r-g)/d + 4;
+  return [Math.round(h*60) % 360, Math.round(mx ? d/mx*100 : 0), Math.round(mx*100)];
+}
+function hsb2rgb([h,s,v]){
+  s/=100; v/=100;
+  const f = n => { const k = (n + h/60) % 6; return 255 * (v - v*s*Math.max(0, Math.min(k, 4-k, 1))); };
+  return [f(5), f(3), f(1)];
+}
+function fmtColor(rgb){
+  const h = hex(rgb);
+  if (S.fmt === 'rgb') return `R${Math.round(rgb[0])} G${Math.round(rgb[1])} B${Math.round(rgb[2])}`;
+  if (S.fmt === 'hsb'){ const [H,s,b] = rgb2hsb(rgb); return `H${H}° S${s} B${b}`; }
+  if (S.fmt === 'cmyk'){ const c = cmykCache.get(h); return c ? `C${c[0]} M${c[1]} Y${c[2]} K${c[3]}` : h; }
+  return h;
+}
+const NUM_FIELDS = {rgb:['R','G','B'], cmyk:['C','M','Y','K'], hsb:['H','S','B']};
+const NUM_MAX = {rgb:[255,255,255], cmyk:[100,100,100,100], hsb:[359,100,100]};
+function renderNums(){
+  const box = $('#colorNums');
+  box.title = S.fmt === 'cmyk' ? `CMYK の数値(%)で色を指定して探す\n変換プロファイル: ${S.profile}` : '数値で色を指定して探す';
+  box.innerHTML = S.fmt === 'hex' ? '<input type="text" class="hexin" data-i="0" spellcheck="false">'
+    : NUM_FIELDS[S.fmt].map((l,i) => `<label>${l}<input type="text" inputmode="numeric" data-i="${i}"></label>`).join('');
+  syncNums();
+}
+async function syncNums(){
+  const h = S.color || $('#colorIn').value, rgb = hexToRgb(h), fmt = S.fmt;
+  let vals;
+  if (fmt === 'hex') vals = [h];
+  else if (fmt === 'rgb') vals = rgb;
+  else if (fmt === 'hsb') vals = rgb2hsb(rgb);
+  else { await ensureCMYK([rgb]); vals = cmykCache.get(h); }
+  if (fmt !== S.fmt) return;
+  $('#colorNums').querySelectorAll('input').forEach((el,i) => { if (el !== document.activeElement) el.value = vals[i]; });
+}
+async function numsChanged(){
+  const vals = [...$('#colorNums').querySelectorAll('input')].map(el => el.value.trim());
+  let h;
+  if (S.fmt === 'hex'){
+    let v = vals[0].replace(/^#/, '');
+    if (/^[0-9a-f]{3}$/i.test(v)) v = v.replace(/./g, c => c+c);
+    if (!/^[0-9a-f]{6}$/i.test(v)) return;
+    h = '#' + v.toLowerCase();
+  } else {
+    if (vals.some(x => x === '' || isNaN(Number(x)))) return;
+    const c = vals.map((v,i) => Math.min(NUM_MAX[S.fmt][i], Math.max(0, Number(v))));
+    h = S.fmt === 'rgb' ? hex(c) : S.fmt === 'hsb' ? hex(hsb2rgb(c)) : await cmykToHex(c);
+  }
+  setColor(h, true);
+}
+function setColor(h, fromNums){
+  S.color = h; $('#colorIn').value = h;
+  if (S.cmode !== 'code'){ S.cmode = 'code'; renderColorRow(); }  // 色の丸のクリックなどからはカラーコード検索へ
+  if (!fromNums) syncNums();
+  renderGrid();
+}
+
+// ---------- color extraction (in browser) ----------
+function extractColors(img){
+  const max = 80, sc = Math.min(1, max/Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth*sc)), h = Math.max(1, Math.round(img.naturalHeight*sc));
+  const c = document.createElement('canvas'); c.width=w; c.height=h;
+  const ctx = c.getContext('2d', {willReadFrequently:true}); ctx.drawImage(img,0,0,w,h);
+  const d = ctx.getImageData(0,0,w,h).data, bins = new Map(); let total = 0;
+  for (let i=0;i<d.length;i+=4){
+    if (d[i+3] < 128) continue;
+    const k = (d[i]>>4)<<8 | (d[i+1]>>4)<<4 | (d[i+2]>>4);
+    let e = bins.get(k); if (!e){ e=[0,0,0,0]; bins.set(k,e); }
+    e[0]+=d[i]; e[1]+=d[i+1]; e[2]+=d[i+2]; e[3]++; total++;
+  }
+  const sorted = [...bins.values()].sort((a,b)=>b[3]-a[3]);
+  const pal = [];
+  for (const e of sorted){
+    const rgb = [e[0]/e[3], e[1]/e[3], e[2]/e[3]], lab = rgb2lab(rgb);
+    const near = pal.find(p => dE(p.lab, lab) < 14);
+    if (near){ near.n += e[3]; continue; }
+    if (pal.length < 10) pal.push({rgb, lab, n:e[3]});
+  }
+  const colors = pal.sort((a,b)=>b.n-a.n).slice(0,6).filter(p=>p.n/total>0.01)
+    .map(p => [...p.rgb.map(Math.round), +(p.n/total).toFixed(3)]);
+  // 大まかな色の系統ごとの割合 (大まか検索用)
+  const fc = {};
+  for (let i=0;i<d.length;i+=4){
+    if (d[i+3] < 128) continue;
+    const f = famOf(d[i], d[i+1], d[i+2]); fc[f] = (fc[f]||0) + 1;
+  }
+  const fam = {};
+  for (const k in fc) fam[k] = +(fc[k]/total).toFixed(3);
+  return {colors, fam};
+}
+
+// ---------- 大まかな色の系統 ----------
+const FAMS = [
+  ['red','赤','#e53935'], ['orange','橙','#fb8c00'], ['yellow','黄','#fdd835'], ['green','緑','#43a047'],
+  ['cyan','水色','#4fc3f7'], ['blue','青','#1e5bd8'], ['purple','紫','#8e44ad'], ['pink','ピンク','#f48fb1'],
+  ['brown','茶','#8d5524'], ['skin','肌','#f3c9a8'], ['white','白','#f5f5f5'], ['gray','灰','#9e9e9e'], ['black','黒','#202020'],
+];
+const famName = k => (FAMS.find(f => f[0] === k) || [k, k])[1];
+// 1ピクセルを系統に分ける (HSV で判定。暗すぎ・色味が薄すぎるものは黒/灰/白)
+function famOf(r, g, b){
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b), v = mx/255, s = mx ? (mx-mn)/mx : 0;
+  if (v < 0.13) return 'black';
+  if (s < 0.12) return v > 0.88 ? 'white' : v < 0.25 ? 'black' : 'gray';
+  let h = 0; const d = mx - mn;
+  h = mx===r ? ((g-b)/d + 6) % 6 : mx===g ? (b-r)/d + 2 : (r-g)/d + 4; h *= 60;
+  if (h >= 10 && h < 45 && s < 0.45 && v > 0.75) return 'skin';
+  if (h >= 15 && h < 50 && v < 0.55) return 'brown';
+  if (h < 15 || h >= 345) return s < 0.45 && v > 0.7 ? 'pink' : 'red';
+  if (h < 45) return 'orange';
+  if (h < 70) return 'yellow';
+  if (h < 165) return 'green';
+  if (h < 200) return 'cyan';
+  if (h < 255) return 'blue';
+  if (h < 295) return 'purple';
+  return 'pink';
+}
+let colorBusy = false;
+const colorTried = new Set(), colorFailed = new Set();  // 色が空の資料は、読み込み失敗の可能性があるので起動ごとに1回だけ解析し直す
+async function queueColors(){
+  if (colorBusy) return; colorBusy = true;
+  try {
+    // 系統の割合 (fam) が無い資料は、前のバージョンで取り込んだもの。起動時に1回だけ解析し直す
+    for (const it of S.items.filter(i => !(i.colors && i.colors.length && i.fam) && !colorTried.has(i.id))){
+      colorTried.add(it.id);
+      const res = await new Promise(res => {
+        const im = new Image();
+        im.onload = () => { try { res(extractColors(im)); } catch(e){ res(null); } };
+        im.onerror = () => res(null);
+        im.src = imgUrl(it);
+      });
+      if (res){
+        it.colors = res.colors; it.fam = res.fam;
+        api('/api/colors', {id: it.id, colors: res.colors, fam: res.fam}).catch(()=>{});
+      } else { it.colors = it.colors || []; colorFailed.add(it.id); }
+      updateCard(it);
+      if (S.preview === it.id) renderPreviewPal(it);
+      if (S.cmode !== 'off') renderColorResult();
+    }
+  } finally { colorBusy = false; }
+  if (S.cmode !== 'off') renderGrid();
+}
+
+// ---------- state ----------
+async function load(){
+  const j = await (await fetch('/api/state')).json();
+  S.items = j.items; S.boards = j.boards;
+  if (j.formats) S.formats = j.formats;
+  if (j.cmyk_profile && j.cmyk_profile !== S.profile){ S.profile = j.cmyk_profile; renderNums(); }
+  $('#fileIn').accept = ['image/*', ...S.formats].join(',');
+  $('#count').title = '資料フォルダ: ' + j.library;
+  if (!S.boards[S.board]) S.board = Object.keys(S.boards)[0];
+  for (const id of [...S.sel]) if (!byId(id)) S.sel.delete(id);
+  renderAll(); queueColors();
+}
+function renderAll(){
+  document.body.classList.toggle('split', S.view==='split');
+  $('#libView').style.display = S.view!=='board' ? 'flex' : 'none';
+  $('#boardView').style.display = S.view!=='library' ? 'flex' : 'none';
+  $('#tabLib').classList.toggle('active', S.view==='library');
+  $('#tabBoard').classList.toggle('active', S.view==='board');
+  $('#tabSplit').classList.toggle('active', S.view==='split');
+  $('#count').textContent = S.items.length + ' 枚';
+  renderBoardSelects();
+  if (S.view!=='board') renderGrid();
+  if (S.view!=='library') renderBoard();
+  renderSelbar();
+}
+
+// ---------- library ----------
+function colorScore(it, target){
+  if (!it.colors || !it.colors.length) return 0;
+  let s = 0;
+  for (const c of it.colors){
+    const d = dE(target, rgb2lab(c));
+    if (d < 28) s += c[3] * (1 - d/28);
+  }
+  return s;
+}
+function visibleItems(){
+  let list = S.items;
+  const q = S.q.trim().toLowerCase();
+  if (q) list = list.filter(i => i.name.toLowerCase().includes(q) || i.file.toLowerCase().includes(q));
+  if (S.cmode === 'rough' && S.fam){
+    const share = i => (i.fam && i.fam[S.fam]) || 0;
+    list = list.filter(i => share(i) >= S.famMin/100).sort((a,b) => share(b) - share(a));
+  } else if (S.cmode === 'code' && S.color){
+    const t = rgb2lab(hexToRgb(S.color));
+    list = list.map(i => [i, colorScore(i,t)]).filter(x => x[1] > 0.03).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+  } else list = [...list].sort((a,b)=>b.added-a.added);
+  return list;
+}
+// 色で絞り込み中は、カードにその色の割合を出す
+function hitTag(it){
+  if (S.cmode === 'rough' && S.fam && it.fam)
+    return `<span class="tag hit" title="この絵の中の「${famName(S.fam)}」っぽい色の割合">${famName(S.fam)} ${Math.round((it.fam[S.fam]||0)*100)}%</span>`;
+  if (S.cmode === 'code' && S.color && it.colors && it.colors.length){
+    const p = Math.round(colorScore(it, rgb2lab(hexToRgb(S.color)))*100);
+    return p ? `<span class="tag hit" title="選んだ色に近い色の割合(目安)">≈${p}%</span>` : '';
+  }
+  return '';
+}
+function itemTags(it){
+  const tags = [], ext = it.file.split('.').pop().toUpperCase();
+  if (['TIF','TIFF','PSD'].includes(ext)) tags.push(ext === 'TIF' ? 'TIFF' : ext);
+  if (it.mode === 'CMYK') tags.push('CMYK');
+  return tags;
+}
+function cardHTML(it){
+  const cols = it.colors || [];
+  return `<img loading="lazy" src="${imgUrl(it)}" alt="" draggable="false">
+    <div class="pal">${cols.map(c=>`<i style="background:${hex(c)};flex:${c[3]}"></i>`).join('')}</div>
+    <div class="meta">${hitTag(it)}${itemTags(it).map(t=>`<span class="tag">${t}</span>`).join('')}<div class="name" title="${esc(it.name)}">${esc(it.name)}</div>
+      <div class="sw">${cols.slice(0,5).map(c=>`<i data-color="${hex(c)}" style="background:${hex(c)}" title="この色で探す"></i>`).join('')}</div></div>
+    <button class="add" data-act="board" title="ボードに追加">＋</button>
+    <div class="check">✓</div>`;
+}
+function renderGrid(){
+  const list = visibleItems(), grid = $('#grid'), empty = $('#empty');
+  grid.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const it of list){
+    const d = document.createElement('div');
+    d.className = 'card' + (S.sel.has(it.id) ? ' sel' : ''); d.dataset.id = it.id; d.draggable = true;
+    d.innerHTML = cardHTML(it); frag.appendChild(d);
+  }
+  grid.appendChild(frag);
+  empty.hidden = list.length > 0;
+  if (!S.items.length) empty.innerHTML = '<b>まだ資料がありません</b>画像をこの画面にドラッグ&ドロップ、<br>Ctrl+V で貼り付け、または「＋ 画像を追加」から。<br>ブラウザで見つけた画像を直接ドラッグしてもOKです。<br>pixiv・X のポストやページの URL を Ctrl+V しても取り込めます。';
+  else if (!list.length) empty.innerHTML = '<b>見つかりませんでした</b>検索ワードや色、「◯%以上」を変えてみてください。';
+  renderChip();
+  renderColorResult(list.length);
+}
+// 色検索の2段目 (大まか / カラーコード)
+function renderColorRow(){
+  const on = S.cmode !== 'off';
+  $('#colorRow').hidden = !on;
+  document.querySelectorAll('[data-cmode]').forEach(b => b.classList.toggle('on', b.dataset.cmode === S.cmode));
+  $('#roughCtl').style.display = S.cmode === 'rough' ? '' : 'none';
+  $('#codeCtl').style.display = S.cmode === 'code' ? '' : 'none';
+  $('#famChips').innerHTML = FAMS.map(([k, name, c]) =>
+    `<button data-fam="${k}" class="${k === S.fam ? 'on' : ''}"><i style="background:${c}"></i>${name}</button>`).join('');
+  $('#famMin').value = S.famMin; $('#famMinV').textContent = S.famMin + '%';
+}
+function renderColorResult(n){
+  if (S.cmode === 'off') return;
+  if (n === undefined) n = visibleItems().length;
+  const pending = S.items.filter(i => !i.fam && !colorFailed.has(i.id)).length;
+  const active = S.cmode === 'rough' ? S.fam : S.color;
+  $('#colorResult').textContent = (active ? `${n} 枚` : (S.cmode === 'rough' ? '色の系統を選んでください' : '色を選んでください'))
+    + (pending ? ` (色を解析中… 残り ${pending} 枚)` : '');
+}
+function setColorMode(m){
+  S.cmode = S.cmode === m ? 'off' : m;
+  renderColorRow(); renderGrid();
+}
+function renderChip(){
+  const c = S.color;
+  if (c && S.fmt === 'cmyk' && !cmykCache.has(c)) ensureCMYK([hexToRgb(c)]).then(() => { if (S.color === c) renderChip(); });
+  $('#colorChip').innerHTML = c ? `<span class="chip"><i style="background:${c}"></i>${fmtColor(hexToRgb(c))}<button id="colorClear" title="色検索を解除">×</button></span>` : '';
+}
+function updateCard(it){
+  const el = document.querySelector(`.card[data-id="${it.id}"]`);
+  if (el) el.innerHTML = cardHTML(it);
+}
+function renderSelbar(){
+  const n = S.sel.size;
+  $('#selbar').classList.toggle('show', n > 0 && S.view!=='board');
+  $('#selCount').textContent = n + ' 枚選択中';
+}
+function renderBoardSelects(){
+  const opts = Object.keys(S.boards).map(n => `<option ${n===S.board?'selected':''}>${esc(n)}</option>`).join('');
+  $('#boardSel').innerHTML = opts; $('#selBoardSel').innerHTML = opts;
+}
+
+$('#grid').addEventListener('click', e => {
+  const card = e.target.closest('.card'); if (!card) return;
+  const id = card.dataset.id;
+  const sw = e.target.closest('[data-color]');
+  if (sw){ setColor(sw.dataset.color); return; }
+  if (e.target.closest('[data-act=board]')){ addToBoard([id]); return; }
+  S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id);
+  card.classList.toggle('sel', S.sel.has(id)); renderSelbar();
+});
+$('#grid').addEventListener('dblclick', e => {
+  const card = e.target.closest('.card'); if (card && !e.target.closest('button,[data-color]')) openPreview(card.dataset.id);
+});
+$('#q').addEventListener('input', e => { S.q = e.target.value; renderGrid(); });
+$('#colorIn').addEventListener('input', e => setColor(e.target.value));
+$('#colorNums').addEventListener('input', numsChanged);
+$('#colorNums').addEventListener('focusout', () => setTimeout(syncNums));
+if (!['hex','rgb','cmyk','hsb'].includes(S.fmt)) S.fmt = 'hex';
+$('#fmt').value = S.fmt;
+$('#fmt').onchange = e => {
+  S.fmt = e.target.value; lsSet('fmt', S.fmt); renderNums(); renderChip();
+  if (S.preview) renderPreviewPal(byId(S.preview));
+};
+$('#folderBtn').onclick = () => window.pywebview?.api.open_folder();
+$('#pinBtn').onclick = async () => { S.pin = await window.pywebview.api.set_on_top(!S.pin); $('#pinBtn').classList.toggle('on', S.pin); };
+window.addEventListener('pywebviewready', () => { document.body.classList.add('app'); $('#pinBtn').classList.toggle('on', S.pin); });
+$('#colorChip').addEventListener('click', e => { if (e.target.id==='colorClear'){ S.color=null; renderGrid(); } });
+document.querySelectorAll('[data-cmode]').forEach(b => b.onclick = () => setColorMode(b.dataset.cmode));
+$('#famChips').onclick = e => {
+  const b = e.target.closest('[data-fam]'); if (!b) return;
+  S.fam = S.fam === b.dataset.fam ? null : b.dataset.fam;
+  renderColorRow(); renderGrid();
+};
+$('#famMin').addEventListener('input', e => {
+  S.famMin = +e.target.value; lsSet('famMin', S.famMin);
+  $('#famMinV').textContent = S.famMin + '%'; renderGrid();
+});
+$('#colorOff').onclick = () => { S.cmode = 'off'; renderColorRow(); renderGrid(); };
+renderColorRow();
+$('#size').addEventListener('input', e => document.documentElement.style.setProperty('--size', e.target.value+'px'));
+$('#pickFiles').onclick = () => $('#fileIn').click();
+$('#fileIn').onchange = async e => { await ingestFiles([...e.target.files]); e.target.value=''; };
+$('#reload').onclick = async () => { await load(); toast('フォルダを読み直しました'); };
+$('#tabLib').onclick = () => { S.view='library'; renderAll(); };
+let fitted=false;
+$('#tabBoard').onclick = () => { S.view='board'; renderAll(); if(!fitted){ fitted=true; setTimeout(fit,100); } };
+$('#tabSplit').onclick = () => { S.view='split'; renderAll(); if(!fitted){ fitted=true; setTimeout(fit,100); } };
+$('#selClear').onclick = () => { S.sel.clear(); renderGrid(); renderSelbar(); };
+$('#selBoardSel').onchange = e => { S.board = e.target.value; renderBoardSelects(); };
+$('#selBoard').onclick = () => { addToBoard([...S.sel]); S.sel.clear(); renderGrid(); renderSelbar(); };
+$('#selDel').onclick = () => deleteItems([...S.sel]);
+
+async function deleteItems(ids){
+  if (!ids.length) return;
+  const j = await api('/api/delete', {ids});
+  S.items = S.items.filter(i => !ids.includes(i.id)); S.boards = j.boards;
+  ids.forEach(id => S.sel.delete(id));
+  closePreview(); renderAll(); notify();
+  toast(ids.length + ' 枚を trash フォルダへ移動しました');
+}
+
+// ---------- preview ----------
+function openPreview(id, gray){
+  const it = byId(id); if (!it) return; S.preview = id;
+  $('#pImg').src = imgUrl(it); $('#pName').value = it.name;
+  const tags = itemTags(it);
+  $('#pInfo').textContent = it.file + (tags.length ? ' ・ ' + tags.join(' / ') + '(表示用に sRGB へ変換)' : '');
+  setPreviewGray(!!gray);
+  $('#preview').classList.add('show');
+}
+function setPreviewGray(on){
+  S.pgray = on;
+  getSelection().removeAllRanges();
+  $('#preview').classList.toggle('gray', on);
+  $('#pGray').classList.toggle('on', on);
+  $('#pGray').textContent = on ? 'カラーで見る' : '白黒で見る';
+  $('#pPalTitle').textContent = on ? 'この画像の白黒の割合' : 'この画像の色(クリックで色検索)';
+  renderPreviewPal(byId(S.preview));
+}
+
+// ---------- 白黒の割合 ----------
+// 灰色の濃さはボードの「白黒」(CSS の grayscale) と同じ式で出すので、見えている灰色と数値が一致する
+const grayCache = new Map();
+function grayShares(img){
+  const max = 200, sc = Math.min(1, max/Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.max(1, Math.round(img.naturalWidth*sc)), h = Math.max(1, Math.round(img.naturalHeight*sc));
+  const c = document.createElement('canvas'); c.width=w; c.height=h;
+  const ctx = c.getContext('2d', {willReadFrequently:true}); ctx.drawImage(img,0,0,w,h);
+  const d = ctx.getImageData(0,0,w,h).data, bins = new Array(10).fill(0); let total = 0;
+  for (let i=0;i<d.length;i+=4){
+    if (d[i+3] < 128) continue;
+    const g = 0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2];
+    bins[Math.min(9, Math.floor(g*10/255))]++; total++;
+  }
+  return total ? bins.map(n => n/total) : null;
+}
+async function renderGrayPal(it){
+  let bins = grayCache.get(it.id);
+  if (bins === undefined){
+    $('#pPal').innerHTML = '<span class="muted">解析中…</span>';
+    bins = await new Promise(res => {
+      const im = new Image();
+      im.onload = () => { try { res(grayShares(im)); } catch(e){ res(null); } };
+      im.onerror = () => res(null);
+      im.src = imgUrl(it);
+    });
+    grayCache.set(it.id, bins);
+  }
+  if (S.preview !== it.id || !S.pgray) return;
+  if (!bins){ $('#pPal').innerHTML = '<span class="muted">白黒の割合を取得できませんでした</span>'; return; }
+  const pct = p => p > 0 && p < 0.005 ? '<1%' : Math.round(p*100) + '%';
+  const sum = (a,b) => bins.slice(a,b).reduce((s,x) => s+x, 0);
+  const tones = [['暗', sum(0,3), '#2b2b2b', '#ddd'], ['中', sum(3,7), '#808080', '#111'], ['明', sum(7,10), '#dcdcdc', '#111']];
+  const gray = i => { const v = Math.round((i*10+5)*2.55); return `rgb(${v},${v},${v})`; };
+  $('#pPal').innerHTML =
+    `<div class="tone3" title="暗 0–30% / 中 30–70% / 明 70–100% (0%=黒, 100%=白)">${tones.map(([l,p,bg,fg]) =>
+      p > 0 ? `<span style="flex:${p};background:${bg};color:${fg}">${p >= 0.08 ? l+' '+pct(p) : ''}</span>` : '').join('')}</div>` +
+    `<div class="muted" style="font-family:inherit">暗 ${pct(tones[0][1])} ・ 中 ${pct(tones[1][1])} ・ 明 ${pct(tones[2][1])}</div>` +
+    bins.map((p,i) => [p,i]).reverse().map(([p,i]) =>
+      `<div class="gray" title="白黒にした時の明るさ ${i*10}〜${i*10+10}% (0%=黒, 100%=白)"><i style="background:${gray(i)}"></i>${String(i*10).padStart(2,' ')}–${i*10+10}%<span class="bar"><b style="width:${Math.round(p*100)}%"></b></span>${pct(p)}</div>`).join('');
+}
+async function renderPreviewPal(it){
+  if (!it) return;
+  if (S.pgray) return renderGrayPal(it);
+  const cols = it.colors || [];
+  if (S.fmt === 'cmyk') await ensureCMYK(cols);
+  if (S.preview !== it.id) return;
+  $('#pPal').innerHTML = cols.map(c => `<div data-color="${hex(c)}" title="${hex(c)}"><i style="background:${hex(c)}"></i>${fmtColor(c)}<span class="bar"><b style="width:${Math.round(c[3]*100)}%"></b></span>${Math.round(c[3]*100)}%</div>`).join('') || `<span class="muted">${colorFailed.has(it.id) ? '色を取得できませんでした' : '解析中…'}</span>`;
+}
+function closePreview(){ $('#preview').classList.remove('show'); S.preview=null; }
+$('#pClose').onclick = closePreview;
+$('#preview').addEventListener('click', e => { if (e.target.id==='preview' || e.target.classList.contains('pimg')) closePreview(); });
+$('#pPal').addEventListener('click', e => { const d=e.target.closest('[data-color]'); if (d){ closePreview(); setColor(d.dataset.color); } });
+$('#pName').addEventListener('change', async e => { const it=byId(S.preview); if (!it) return; it.name=e.target.value; await api('/api/rename',{id:it.id,name:it.name}); updateCard(it); });
+$('#pGray').onclick = () => setPreviewGray(!S.pgray);
+$('#pBoard').onclick = () => { if (S.preview) addToBoard([S.preview]); };
+$('#pDel').onclick = () => { if (S.preview) deleteItems([S.preview]); };
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape'){ if (S.preview) closePreview(); else if (S.tool !== 'move') setTool('move'); }
+  if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z' && !e.shiftKey && S.view!=='library' && !S.preview && document.activeElement.tagName!=='INPUT'){
+    e.preventDefault(); undoInk(); return;
+  }
+  if ((e.key==='Delete'||e.key==='Backspace') && S.view!=='library' && activeBi!=null && document.activeElement.tagName!=='INPUT'){
+    board().items.splice(activeBi,1); activeBi=null; renderBoard(); saveBoard();
+  }
+});
+
+// ---------- ingest (drop / paste / file) ----------
+async function ingestFiles(files, at){
+  const added = [];
+  for (const f of files){
+    const ext = (f.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+    if (!(S.formats.includes(ext) || (!ext && f.type.startsWith('image/')))){ toast('この形式は追加できません: ' + f.name); continue; }
+    try {
+      const r = await fetch('/api/upload', {method:'POST', headers:{'X-Name': encodeURIComponent(f.name || 'paste.png')}, body:f});
+      const j = await r.json(); if (j.error) throw new Error(j.error);
+      S.items.push(j); added.push(j);
+    } catch(e){ toast('追加できませんでした: ' + e.message); }
+  }
+  afterIngest(added, at);
+}
+async function ingestUrl(url, at){
+  try {
+    let j;
+    if (url.startsWith('data:image/')){
+      const blob = await (await fetch(url)).blob();
+      const ext = (blob.type.split('/')[1]||'png').replace('jpeg','jpg');
+      return ingestFiles([new File([blob], 'web.'+ext, {type: blob.type})], at);
+    }
+    toast('ダウンロード中…');
+    j = await api('/api/fetch', {url});
+    S.items.push(...j.items); afterIngest(j.items, at);
+  } catch(e){ toast('取り込めませんでした: ' + e.message); }
+}
+function afterIngest(added, at){
+  if (!added.length) return;
+  toast(added.length + ' 枚追加しました');
+  if (at || S.view==='board') addToBoard(added.map(a=>a.id), at); else renderAll();
+  queueColors(); notify();
+}
+let dragDepth = 0;
+const hasExternal = e => [...(e.dataTransfer?.types||[])].some(t => t==='Files' || t==='text/uri-list' || t==='text/html');
+window.addEventListener('dragenter', e => { if (!hasExternal(e) || internalDrag) return; dragDepth++; $('#drop').classList.add('show'); });
+window.addEventListener('dragleave', e => {
+  if (!e.relatedTarget) stage.classList.remove('dropping');
+  if (--dragDepth <= 0){ dragDepth=0; $('#drop').classList.remove('show'); }
+});
+window.addEventListener('dragover', e => {
+  if (!hasExternal(e)) return;
+  e.preventDefault();
+  stage.classList.toggle('dropping', !!e.target.closest?.('#stage') && S.view!=='library');
+});
+let internalDrag = false;
+window.addEventListener('dragstart', () => internalDrag = true);
+window.addEventListener('dragend', () => { internalDrag = false; stage.classList.remove('dropping'); });
+
+// ライブラリの資料をボードへドラッグ。別ウィンドウのボードにも、この URL の一覧で渡る
+const LIB_TYPE = 'application/x-shiryo-ids';
+$('#grid').addEventListener('dragstart', e => {
+  const card = e.target.closest('.card'); if (!card) return;
+  const ids = S.sel.has(card.dataset.id) ? [...S.sel] : [card.dataset.id];
+  e.dataTransfer.setData(LIB_TYPE, JSON.stringify(ids));
+  e.dataTransfer.setData('text/uri-list', ids.map(id => location.origin + imgUrl(byId(id))).join('\r\n'));
+  e.dataTransfer.effectAllowed = 'copy';
+});
+async function libraryIds(idsJson, uris){
+  let ids = null;
+  try { ids = JSON.parse(idsJson || 'null'); } catch(e){}
+  const pre = location.origin + '/img/';
+  const files = uris.split(/\r?\n/).filter(u => u.startsWith(pre)).map(u => decodeURIComponent(u.slice(pre.length)));
+  const find = () => ids ? ids.filter(byId) : files.map(f => S.items.find(i => i.file === f)).filter(Boolean).map(i => i.id);
+  let found = find();
+  if (found.length < (ids || files).length){ await load(); found = find(); }  // 他のウィンドウで追加されたばかりの資料
+  return found;
+}
+
+window.addEventListener('drop', async e => {
+  e.preventDefault(); dragDepth=0; $('#drop').classList.remove('show'); stage.classList.remove('dropping');
+  const onStage = !!e.target.closest?.('#stage') && S.view!=='library';
+  const at = onStage ? screenToWorld(e.clientX, e.clientY) : null;
+  // ドロップの中身はイベント中にしか読めないので、await より前に全部取り出す
+  const dt = e.dataTransfer, idsJson = dt.getData(LIB_TYPE), uris = dt.getData('text/uri-list') || '';
+  const files = [...dt.files], html = dt.getData('text/html');
+  if (idsJson || uris.includes(location.origin + '/img/')){
+    internalDrag = false;
+    const lib = await libraryIds(idsJson, uris);
+    if (lib.length && onStage) addToBoard(lib, {x: at.x - 150, y: at.y - 60});  // カーソルが画像の上の方に来るように
+    return;
+  }
+  if (internalDrag){ internalDrag=false; return; }
+  if (files.length) return ingestFiles(files, at);
+  const url = droppedImageUrl(html) || uris.split('\n')[0].trim();
+  if (url) ingestUrl(url, at);
+});
+// ドラッグされた HTML の <img> から一番大きい画像の URL (blob: は取れないので除く)
+function droppedImageUrl(html){
+  const img = html && new DOMParser().parseFromString(html, 'text/html').querySelector('img');
+  if (!img) return null;
+  const set = (img.getAttribute('srcset') || '').split(',').map(c => c.trim().split(/\s+/))
+    .filter(c => c[0]).map(c => [c[0], parseFloat(c[1]) || 1]).sort((a,b) => b[1]-a[1]);
+  const url = (set[0] && set[0][0]) || img.getAttribute('src') || img.getAttribute('data-src');
+  return url && !url.startsWith('blob:') ? url : null;
+}
+document.addEventListener('paste', e => {
+  if (document.activeElement.tagName === 'INPUT') return;
+  const files = [...(e.clipboardData?.items||[])].filter(i => i.type.startsWith('image/')).map(i => i.getAsFile()).filter(Boolean);
+  if (files.length){ e.preventDefault(); return ingestFiles(files.map((f,i)=>new File([f], `paste_${Date.now()}_${i}.png`, {type:f.type}))); }
+  const text = e.clipboardData?.getData('text') || '';
+  if (/^https?:\/\/\S+$/i.test(text.trim())) ingestUrl(text.trim());  // 画像・pixiv/X のポスト・一般ページの URL
+});
+
+// ---------- board ----------
+const stage = $('#stage'), world = $('#world');
+const view = {x:40, y:40, s:1};
+let activeBi = null;
+const board = () => S.boards[S.board];
+function applyView(){
+  world.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.s})`;
+  world.style.setProperty('--inv', 1 / view.s);
+}
+function screenToWorld(cx, cy){ const r = stage.getBoundingClientRect(); return {x:(cx-r.left-view.x)/view.s, y:(cy-r.top-view.y)/view.s}; }
+function renderBoard(){
+  const b = board(); if (!b) return;
+  world.classList.toggle('gray', !!b.gray);
+  $('#grayBtn').classList.toggle('on', !!b.gray);
+  world.innerHTML = '';
+  b.items.forEach((bi, idx) => {
+    const it = byId(bi.id); if (!it) return;
+    const d = document.createElement('div');
+    d.className = 'bi' + (bi.flip?' flip':'') + (idx===activeBi?' active':'');
+    d.dataset.idx = idx;
+    d.style.cssText = `left:${bi.x}px;top:${bi.y}px;width:${bi.w}px`;
+    d.innerHTML = `<img src="${imgUrl(it)}" alt="" draggable="false"><div class="handle"></div>
+      <div class="bacts"><button data-b="flip" title="左右反転">⇋ 反転</button><button data-b="rm" title="ボードから外す">×</button></div>`;
+    world.appendChild(d);
+  });
+  renderInk();
+  applyView();
+}
+
+// ---------- ペン / 消しゴム (構造メモ用。線はボードごとに world 座標で保存し、絵には触らない) ----------
+const SVGNS = 'http://www.w3.org/2000/svg';
+const PEN_COLORS = ['#ff3b30', '#2f7bff', '#ffd60a', '#34c759', '#ffffff', '#111111'];
+const PEN_SIZES = [{label:'細', px:3}, {label:'太', px:8}];  // 描いた時の画面上の太さ
+const ERASER_PX = 26;  // 消しゴムの画面上の直径
+S.tool = 'move';
+S.penColor = PEN_COLORS.includes(lsGet('penColor')) ? lsGet('penColor') : PEN_COLORS[0];
+S.penSize = lsGet('penSize') === '1' ? 1 : 0;
+const r1 = v => Math.round(v * 10) / 10;
+const strokePath = pts => 'M' + pts.map(p => p[0] + ' ' + p[1]).join('L');
+function renderInk(){
+  let svg = world.querySelector('#ink');
+  if (!svg){ svg = document.createElementNS(SVGNS, 'svg'); svg.id = 'ink'; world.appendChild(svg); }
+  svg.innerHTML = (board()?.strokes || []).map(s =>
+    `<path d="${strokePath(s.p)}" stroke="${esc(s.c)}" stroke-width="${+s.w}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+}
+function segDist(p, a, b){
+  const dx = b[0]-a[0], dy = b[1]-a[1], l = dx*dx + dy*dy;
+  const t = l ? Math.max(0, Math.min(1, ((p.x-a[0])*dx + (p.y-a[1])*dy) / l)) : 0;
+  return Math.hypot(p.x - a[0] - t*dx, p.y - a[1] - t*dy);
+}
+// 消しゴムの円に入った部分だけ線を切り取る (線が途中で2本に分かれることもある)
+function eraseAt(p){
+  const b = board(), r = ERASER_PX / 2 / view.s, out = [];
+  let changed = false;
+  for (const s of b.strokes || []){
+    const rr = r + s.w / 2, hit = (q, i) => Math.hypot(q[0]-p.x, q[1]-p.y) <= rr || (i > 0 && segDist(p, s.p[i-1], q) <= rr);
+    if (!s.p.some(hit)){ out.push(s); continue; }
+    changed = true;
+    let run = [];
+    s.p.forEach((q, i) => {
+      const inside = Math.hypot(q[0]-p.x, q[1]-p.y) <= rr;
+      if (inside || (i > 0 && run.length && segDist(p, s.p[i-1], q) <= rr)){
+        if (run.length > 1) out.push({...s, p: run});
+        run = inside ? [] : [q];
+      } else run.push(q);
+    });
+    if (run.length > 1) out.push({...s, p: run});
+  }
+  if (changed){ b.strokes = out; renderInk(); }
+  return changed;
+}
+const undos = new Map();  // ボード名 → 線の履歴 (Ctrl+Z 用、起動中だけ)
+const undoStack = () => { if (!undos.has(S.board)) undos.set(S.board, []); return undos.get(S.board); };
+function pushUndo(){ const st = undoStack(); st.push(JSON.stringify(board().strokes || [])); if (st.length > 100) st.shift(); }
+function undoInk(){
+  const st = undoStack();
+  if (!st.length) return toast('戻せる線がありません');
+  board().strokes = JSON.parse(st.pop()); renderInk(); saveBoard();
+}
+const HINTS = {
+  move: 'ドラッグで移動 / 右下の■でサイズ変更 / 背景ドラッグでスクロール / ホイールでズーム / ライブラリの資料や画像をここにドロップで追加',
+  pen: 'ドラッグで線を描く / Ctrl+Z で1つ戻す / ホイールでズーム / ホイールを押してドラッグでスクロール / Esc で移動に戻る',
+  eraser: 'ドラッグでペンの線を消す(絵は消えません) / Ctrl+Z で1つ戻す / Esc で移動に戻る',
+};
+function setTool(t){
+  S.tool = t;
+  document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+  stage.classList.toggle('draw-pen', t === 'pen');
+  stage.classList.toggle('draw-eraser', t === 'eraser');
+  if (t !== 'move'){ activeBi = null; world.querySelectorAll('.bi.active').forEach(x => x.classList.remove('active')); }
+  stage.querySelector('.hint').textContent = HINTS[t];
+}
+function renderPenUI(){
+  $('#penColors').innerHTML = PEN_COLORS.map(c =>
+    `<button data-pen="${c}" class="${c === S.penColor ? 'on' : ''}" style="background:${c}" title="ペンの色"></button>`).join('');
+  $('#penSize').textContent = '太さ: ' + PEN_SIZES[S.penSize].label;
+}
+document.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+$('#penColors').onclick = e => {
+  const c = e.target.dataset.pen; if (!c) return;
+  S.penColor = c; lsSet('penColor', c); renderPenUI(); setTool('pen');
+};
+$('#penSize').onclick = () => { S.penSize = 1 - S.penSize; lsSet('penSize', S.penSize); renderPenUI(); setTool('pen'); };
+$('#inkClear').onclick = () => {
+  if (!(board().strokes || []).length) return;
+  pushUndo(); board().strokes = []; renderInk(); saveBoard(); toast('ペンの線を全部消しました (Ctrl+Z で戻せます)');
+};
+stage.addEventListener('pointermove', e => {
+  if (S.tool !== 'eraser') return;
+  const r = stage.getBoundingClientRect(), ring = $('#eraserRing');
+  ring.style.cssText = `left:${e.clientX - r.left}px;top:${e.clientY - r.top}px;width:${ERASER_PX}px;height:${ERASER_PX}px`;
+});
+renderPenUI();
+function addToBoard(ids, at){
+  const b = board(); if (!b) return;
+  const r = stage.getBoundingClientRect();
+  const c = at || screenToWorld(r.left + (r.width||800)/2 - 150, r.top + (r.height||600)/2 - 150);
+  ids.forEach((id, i) => b.items.push({id, x: Math.round(c.x + i*36), y: Math.round(c.y + i*36), w: 300, flip:false}));
+  saveBoard();
+  if (S.view!=='library') renderBoard();
+  toast(`「${S.board}」に ${ids.length} 枚追加しました`);
+}
+let saveT;
+function saveBoard(){
+  clearTimeout(saveT);
+  saveT = setTimeout(async () => { try { await api('/api/board/save', {name:S.board, board:board()}); notify(); } catch(e){ toast('保存に失敗: '+e.message); } }, 300);
+}
+function notify(){ chan && chan.postMessage({type:'changed'}); }
+if (chan) chan.onmessage = () => { if (!dragging) load(); };
+
+let dragging = null, lastTap = null;
+stage.addEventListener('pointerdown', e => {
+  if (e.button !== 0 && e.button !== 1) return;
+  const btn = e.target.closest('[data-b]');
+  const el = e.target.closest('.bi');
+  if (btn && el){
+    const idx = +el.dataset.idx, b = board();
+    if (btn.dataset.b === 'rm'){ b.items.splice(idx,1); activeBi=null; }
+    else b.items[idx].flip = !b.items[idx].flip;
+    renderBoard(); saveBoard(); return;
+  }
+  stage.setPointerCapture(e.pointerId);
+  if (S.tool !== 'move' && e.button === 0){  // ペン / 消しゴム
+    const b = board(), p = screenToWorld(e.clientX, e.clientY);
+    b.strokes ||= [];
+    pushUndo();
+    if (S.tool === 'pen'){
+      const s = {c: S.penColor, w: r1(PEN_SIZES[S.penSize].px / view.s), p: [[r1(p.x), r1(p.y)]]};
+      b.strokes.push(s); renderInk();
+      dragging = {mode:'draw', s, path: world.querySelector('#ink').lastElementChild};
+    } else dragging = {mode:'erase', changed: eraseAt(p)};
+    return;
+  }
+  if (el && e.button === 0){
+    const b = board(); let idx = +el.dataset.idx;
+    // 最前面へ
+    const [bi] = b.items.splice(idx,1); b.items.push(bi); idx = b.items.length-1; activeBi = idx;
+    renderBoard();
+    // ダブルクリックで詳細。押すたびに作り直すのでブラウザの dblclick は届かず、自前で判定する
+    const now = performance.now();
+    if (lastTap && lastTap.bi === bi && now - lastTap.t < 400 && Math.hypot(e.clientX-lastTap.x, e.clientY-lastTap.y) < 6){
+      lastTap = null; stage.releasePointerCapture(e.pointerId);
+      e.preventDefault();  // 2回目の押下で、開いた詳細画面の画像が選択されないように
+      openPreview(bi.id, !!b.gray);
+      setTimeout(() => getSelection().removeAllRanges(), 0);
+      return;
+    }
+    lastTap = {bi, t: now, x: e.clientX, y: e.clientY};
+    const mode = e.target.classList.contains('handle') ? 'resize' : 'move';
+    dragging = {mode, bi, sx:e.clientX, sy:e.clientY, ox:bi.x, oy:bi.y, ow:bi.w, el: world.querySelector(`.bi[data-idx="${idx}"]`)};
+  } else {
+    activeBi = null; world.querySelectorAll('.bi.active').forEach(x=>x.classList.remove('active'));
+    dragging = {mode:'pan', sx:e.clientX, sy:e.clientY, ox:view.x, oy:view.y};
+    stage.classList.add('panning');
+  }
+});
+stage.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  if (dragging.mode === 'draw'){
+    // 速く動かしても消しゴムが当たるよう、点を 3px(画面上)おきに補う
+    const p = screenToWorld(e.clientX, e.clientY), pts = dragging.s.p, last = pts[pts.length-1];
+    const d = Math.hypot(p.x - last[0], p.y - last[1]), step = 3 / view.s;
+    if (d < step) return;
+    const n = Math.ceil(d / step);
+    for (let i = 1; i <= n; i++) pts.push([r1(last[0] + (p.x-last[0])*i/n), r1(last[1] + (p.y-last[1])*i/n)]);
+    dragging.path.setAttribute('d', strokePath(pts));
+    return;
+  }
+  if (dragging.mode === 'erase'){ if (eraseAt(screenToWorld(e.clientX, e.clientY))) dragging.changed = true; return; }
+  const dx = e.clientX - dragging.sx, dy = e.clientY - dragging.sy;
+  if (dragging.mode === 'pan'){ view.x = dragging.ox + dx; view.y = dragging.oy + dy; applyView(); }
+  else if (dragging.mode === 'move'){
+    dragging.bi.x = Math.round(dragging.ox + dx/view.s); dragging.bi.y = Math.round(dragging.oy + dy/view.s);
+    dragging.el.style.left = dragging.bi.x+'px'; dragging.el.style.top = dragging.bi.y+'px';
+  } else {
+    dragging.bi.w = Math.max(40, Math.round(dragging.ow + dx/view.s));
+    dragging.el.style.width = dragging.bi.w+'px';
+  }
+});
+const endDrag = () => {
+  if (!dragging) return;
+  if (dragging.mode === 'draw' && dragging.s.p.length === 1){ dragging.s.p.push([...dragging.s.p[0]]); renderInk(); }  // クリックだけなら点
+  if (dragging.mode === 'erase' && !dragging.changed) undoStack().pop();  // 何も消えなかったら履歴に残さない
+  if (dragging.mode !== 'pan') saveBoard();
+  dragging = null; stage.classList.remove('panning');
+};
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+stage.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = stage.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  const ns = Math.min(8, Math.max(0.05, view.s * Math.exp(-e.deltaY * 0.0015)));
+  view.x = mx - (mx - view.x) * ns / view.s; view.y = my - (my - view.y) * ns / view.s; view.s = ns; applyView();
+}, {passive:false});
+function fit(){
+  const els = [...world.querySelectorAll('.bi')]; if (!els.length){ view.x=40; view.y=40; view.s=1; return applyView(); }
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for (const el of els){ const x=el.offsetLeft, y=el.offsetTop; x0=Math.min(x0,x); y0=Math.min(y0,y); x1=Math.max(x1,x+el.offsetWidth); y1=Math.max(y1,y+el.offsetHeight); }
+  const r = stage.getBoundingClientRect(), pad = 30;
+  view.s = Math.min(4, (r.width-pad*2)/(x1-x0), (r.height-pad*2)/(y1-y0));
+  view.x = pad - x0*view.s + ((r.width-pad*2) - (x1-x0)*view.s)/2;
+  view.y = pad - y0*view.s + ((r.height-pad*2) - (y1-y0)*view.s)/2;
+  applyView();
+}
+$('#fitBtn').onclick = fit;
+$('#grayBtn').onclick = () => { board().gray = !board().gray; renderBoard(); saveBoard(); };
+$('#clearBtn').onclick = () => {
+  pushUndo();  // 線は Ctrl+Z で戻せる
+  board().items = []; board().strokes = []; activeBi=null; renderBoard(); saveBoard();
+  toast('ボードを空にしました(資料自体は残っています)');
+};
+$('#boardSel').onchange = e => { S.board = e.target.value; activeBi=null; renderAll(); setTimeout(fit, 50); };
+$('#boardNew').onclick = async () => {
+  const name = (window.prompt('新しいボードの名前', '') || '').trim(); if (!name) return;
+  if (S.boards[name]) return toast('同じ名前のボードがあります');
+  const j = await api('/api/board/create', {name}); S.boards = j.boards; S.board = name; renderAll(); notify();
+};
+$('#boardDel').onclick = async () => {
+  if (!window.confirm(`ボード「${S.board}」を削除しますか?(資料自体は残ります)`)) return;
+  const j = await api('/api/board/delete', {name:S.board}); S.boards = j.boards; S.board = Object.keys(S.boards)[0]; renderAll(); notify();
+};
+$('#popBtn').onclick = () => window.pywebview?.api ? window.pywebview.api.open_board(S.board) : window.open(`/?view=board&popup=1&board=${encodeURIComponent(S.board)}`, 'shiryo_board', 'popup,width=520,height=760');
+
+renderNums();
+load().then(() => { if (S.view!=='library') setTimeout(fit, 300); });
+</script>
+</body>
+</html>

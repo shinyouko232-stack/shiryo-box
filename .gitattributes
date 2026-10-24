@@ -1,0 +1,5 @@
+# Windows のバッチとメモ帳で読む説明書は CRLF のまま (LF だと cmd が壊れる)
+*.bat text eol=crlf
+*.txt text eol=crlf
+*.command text eol=lf
+*.ico binary
