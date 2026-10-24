@@ -14,3 +14,7 @@ __pycache__/
 
 # ログ
 *.log
+
+# 自分の PC で入れ替える exe の場所 (build_app.py 用)
+update_targets.txt
+*.tmp

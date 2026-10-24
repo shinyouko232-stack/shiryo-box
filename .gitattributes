@@ -3,3 +3,6 @@
 *.txt text eol=crlf
 *.command text eol=lf
 *.ico binary
+
+# git の pull フック
+.githooks/* text eol=lf

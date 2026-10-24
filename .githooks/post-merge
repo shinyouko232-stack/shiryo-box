@@ -1,0 +1,9 @@
+#!/bin/sh
+# git pull で資料箱のプログラムが変わっていたら、資料箱.exe を作り直して入れ替える
+# 有効にするには、このリポジトリで一度だけ:  git config core.hooksPath .githooks
+changed=$(git diff --name-only ORIG_HEAD HEAD -- app.html shiryo_box.py make_licenses.py build_app.py icon.ico 2>/dev/null)
+[ -n "$changed" ] || exit 0
+echo "資料箱のプログラムが更新されたので、資料箱.exe を作り直します…"
+cd "$(git rev-parse --show-toplevel)" || exit 0
+if command -v py >/dev/null 2>&1; then py -3 build_app.py; else python build_app.py; fi
+exit 0
