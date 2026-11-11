@@ -94,8 +94,14 @@ header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var
 #toast.show{opacity:1}
 #preview{position:fixed;inset:0;background:#000d;display:none;z-index:40;padding:24px;gap:20px}
 #preview.show{display:flex}
-#preview .pimg{flex:1;display:flex;align-items:center;justify-content:center;min-width:0}
-#preview .pimg img{max-width:100%;max-height:100%;object-fit:contain}
+/* 詳細画面の絵: ホイールで拡大・ドラッグで移動 (位置と倍率は transform で持つ) */
+#preview .pimg{flex:1;position:relative;overflow:hidden;min-width:0;cursor:grab;touch-action:none}
+#preview .pimg.panning{cursor:grabbing}
+#preview .pimg img{position:absolute;left:0;top:0;max-width:none;max-height:none;transform-origin:0 0;visibility:hidden}
+.pzoom{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;
+  padding:4px;background:#000b;border:1px solid #fff2;border-radius:10px;cursor:default;z-index:1}
+.pzoom button{padding:3px 10px;background:transparent;border-color:#fff3}
+.pzoom span{min-width:52px;text-align:center;font-size:12px;font-family:ui-monospace,monospace}
 #preview aside{width:300px;background:var(--panel);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;overflow:auto}
 #preview aside input{width:100%}
 .bigpal{display:flex;flex-direction:column;gap:6px}
@@ -138,9 +144,25 @@ body.split #selbar{left:21%}
 #ink{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
 #stage.draw-pen,#stage.draw-pen .bi{cursor:crosshair}
 #stage.draw-eraser,#stage.draw-eraser .bi{cursor:none}
-#stage.draw-pen .bacts,#stage.draw-pen .handle,#stage.draw-eraser .bacts,#stage.draw-eraser .handle{display:none!important}
+#stage.draw-pen .bacts,#stage.draw-pen .handle,#stage.draw-eraser .bacts,#stage.draw-eraser .handle,
+#stage.draw-circle .bacts,#stage.draw-circle .handle{display:none!important}
 #eraserRing{position:absolute;display:none;border-radius:50%;border:1.5px solid #fff;box-shadow:0 0 0 1px #000b,inset 0 0 0 1px #000b;pointer-events:none;transform:translate(-50%,-50%)}
 #stage.draw-eraser:hover #eraserRing{display:block}
+/* 頭身を測る丸。線の太さ・つまみ・番号はズームしても画面上で同じ大きさ */
+#circ{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
+#circ .ring{fill:none;stroke-width:2.5;vector-effect:non-scaling-stroke}
+#circ .hit{fill:none;stroke:transparent;stroke-width:16;vector-effect:non-scaling-stroke;pointer-events:stroke;cursor:move}
+#circ .hdl{pointer-events:all;cursor:ew-resize;stroke:#000a;stroke-width:1;vector-effect:non-scaling-stroke;opacity:0}
+#circ g:hover .hdl,#circ g.on .hdl{opacity:1}
+#circ g.on .ring{stroke-dasharray:7 4}
+#circ .lbl{font-weight:700;paint-order:stroke;stroke:#000b;stroke-width:3;vector-effect:non-scaling-stroke;pointer-events:none}
+#stage.draw-circle,#stage.draw-circle .bi{cursor:crosshair}
+#stage.draw-pen #circ *,#stage.draw-eraser #circ *{pointer-events:none!important}
+.cmenu{position:fixed;z-index:70;display:flex;flex-direction:column;gap:2px;min-width:170px;padding:5px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px #0009}
+.cmenu button{text-align:left;border-color:transparent;background:transparent;padding:7px 10px}
+.cmenu button:hover{background:var(--panel2);border-color:var(--line)}
+.cmenu button.primary{background:var(--accent);color:#1b1408}
 .bi{position:absolute;user-select:none;cursor:move}
 .bi img{display:block;width:100%;height:auto;pointer-events:none;box-shadow:0 4px 18px #0007}
 .bi.flip img{transform:scaleX(-1)}
@@ -239,6 +261,7 @@ body.popup .hint,body.popup #popBtn{display:none}
       <button data-tool="move" class="on" title="画像の移動・サイズ変更 (Esc)">✋ 移動</button>
       <button data-tool="pen" title="構造メモ用のペン">✏️ ペン</button>
       <button data-tool="eraser" title="ペンの線だけを消します(絵は消えません)">消しゴム</button>
+      <button data-tool="circle" title="頭身を測る丸。ドラッグで描いて、右クリックでコピー">⭕ 丸</button>
       <span id="penColors" class="pens"></span>
       <button id="penSize" title="ペンの太さ"></button>
       <button id="inkClear" class="danger" title="このボードのペンの線を全部消す(Ctrl+Z で戻せます)">線を全消去</button>
@@ -264,7 +287,12 @@ body.popup .hint,body.popup #popBtn{display:none}
 </div>
 
 <div id="preview">
-  <div class="pimg"><img id="pImg" alt="" draggable="false"></div>
+  <div class="pimg" title="ホイールで拡大・縮小 / ドラッグで移動 / ダブルクリックで等倍⇔全体"><img id="pImg" alt="" draggable="false">
+    <div class="pzoom">
+      <button data-pz="out" title="縮小 (-)">−</button><span id="pzPct">100%</span><button data-pz="in" title="拡大 (+)">＋</button>
+      <button data-pz="fit" title="全体を表示 (0)">全体</button><button data-pz="one" title="等倍 (100%)">1:1</button>
+    </div>
+  </div>
   <aside>
     <div class="muted">名前</div>
     <input id="pName" type="text">
@@ -283,6 +311,11 @@ body.popup .hint,body.popup #popBtn{display:none}
 </div>
 
 <div id="drop">ここにドロップして追加</div>
+<div id="cmenu" class="cmenu" hidden>
+  <button data-cm="down" class="primary" title="すぐ下にぴったり接して、同じ大きさの丸を置く">⬇ 下にコピー (頭身を数える)</button>
+  <button data-cm="right">➡ 右にコピー</button>
+  <button data-cm="del">🗑 この丸を削除</button>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -840,7 +873,73 @@ function openPreview(id, gray){
   renderPTags(it); $('#pTagIn').value = '';
   setPreviewGray(!!gray);
   $('#preview').classList.add('show');
+  const img = $('#pImg');
+  if (img.complete && img.naturalWidth) pzFit();  // 読み込み済みなら load が来ない (大きさは getBoundingClientRect がその場で計算する)
 }
+
+// ---------- 詳細画面の拡大・移動 ----------
+const pz = {s: 1, x: 0, y: 0, fit: true};
+const pzBox = () => $('#preview .pimg');
+function pzApply(){
+  const img = $('#pImg');
+  img.style.transform = `translate(${pz.x}px,${pz.y}px) scale(${pz.s})`;
+  img.style.visibility = 'visible';
+  $('#pzPct').textContent = Math.round(pz.s * 100) + '%';
+}
+// 全体が収まる倍率 (小さい絵は引き伸ばさない)
+function pzFitScale(){
+  const r = pzBox().getBoundingClientRect(), img = $('#pImg');
+  return Math.min(r.width / img.naturalWidth, r.height / img.naturalHeight, 1) || 1;
+}
+function pzFit(){
+  const img = $('#pImg');
+  if (!S.preview || !img.naturalWidth) return;
+  const r = pzBox().getBoundingClientRect();
+  pz.s = pzFitScale(); pz.fit = true;
+  pz.x = (r.width - img.naturalWidth * pz.s) / 2; pz.y = (r.height - img.naturalHeight * pz.s) / 2;
+  pzApply();
+}
+// 画面上の (cx, cy) を中心に倍率 ns にする
+function pzZoomAt(ns, cx, cy){
+  const r = pzBox().getBoundingClientRect(), mx = cx - r.left, my = cy - r.top;
+  ns = Math.min(16, Math.max(pzFitScale() * 0.5, ns));
+  pz.x = mx - (mx - pz.x) * ns / pz.s; pz.y = my - (my - pz.y) * ns / pz.s;
+  pz.s = ns; pz.fit = false; pzApply();
+}
+function pzCenterZoom(f){ const r = pzBox().getBoundingClientRect(); pzZoomAt(pz.s * f, r.left + r.width/2, r.top + r.height/2); }
+// 描画待ち (requestAnimationFrame) にすると、窓が裏に隠れている間は実行されず等倍のまま出るので、その場で合わせる
+$('#pImg').addEventListener('load', pzFit);
+pzBox().addEventListener('wheel', e => { e.preventDefault(); pzZoomAt(pz.s * Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY); }, {passive: false});
+let pzDrag = null;
+pzBox().addEventListener('pointerdown', e => {
+  if (e.button !== 0 || e.target.closest('.pzoom')) return;
+  pzBox().setPointerCapture(e.pointerId);
+  pzDrag = {sx: e.clientX, sy: e.clientY, ox: pz.x, oy: pz.y, moved: false, onImg: e.target.id === 'pImg'};
+});
+pzBox().addEventListener('pointermove', e => {
+  if (!pzDrag) return;
+  const dx = e.clientX - pzDrag.sx, dy = e.clientY - pzDrag.sy;
+  if (!pzDrag.moved && Math.hypot(dx, dy) < 4) return;
+  pzDrag.moved = true; pzBox().classList.add('panning');
+  pz.x = pzDrag.ox + dx; pz.y = pzDrag.oy + dy; pz.fit = false; pzApply();
+});
+pzBox().addEventListener('pointerup', () => {
+  const d = pzDrag; pzDrag = null; pzBox().classList.remove('panning');
+  if (d && !d.moved && !d.onImg && pz.fit) closePreview();  // 全体表示のとき、絵の外をクリックで閉じる (今まで通り)
+});
+pzBox().addEventListener('dblclick', e => {
+  if (e.target.closest('.pzoom')) return;
+  // 全体表示 ⇔ 等倍 (小さい絵は 2 倍)
+  pz.fit || pz.s < 0.99 ? pzZoomAt(pz.fit && pz.s >= 0.99 ? 2 : 1, e.clientX, e.clientY) : pzFit();
+});
+$('#preview .pzoom').onclick = e => {
+  const a = e.target.closest('[data-pz]')?.dataset.pz;
+  if (a === 'in') pzCenterZoom(1.25);
+  else if (a === 'out') pzCenterZoom(0.8);
+  else if (a === 'fit') pzFit();
+  else if (a === 'one'){ const r = pzBox().getBoundingClientRect(); pzZoomAt(1, r.left + r.width/2, r.top + r.height/2); }
+};
+window.addEventListener('resize', () => { if (S.preview && pz.fit) pzFit(); });
 function setPreviewGray(on){
   S.pgray = on;
   getSelection().removeAllRanges();
@@ -902,14 +1001,24 @@ async function renderPreviewPal(it){
 }
 function closePreview(){ $('#preview').classList.remove('show'); S.preview=null; }
 $('#pClose').onclick = closePreview;
-$('#preview').addEventListener('click', e => { if (e.target.id==='preview' || e.target.classList.contains('pimg')) closePreview(); });
+$('#preview').addEventListener('click', e => { if (e.target.id==='preview') closePreview(); });  // 絵の枠の外側 (余白)
 $('#pPal').addEventListener('click', e => { const d=e.target.closest('[data-color]'); if (d){ closePreview(); setColor(d.dataset.color); } });
 $('#pName').addEventListener('change', async e => { const it=byId(S.preview); if (!it) return; it.name=e.target.value; await api('/api/rename',{id:it.id,name:it.name}); updateCard(it); });
 $('#pGray').onclick = () => setPreviewGray(!S.pgray);
 $('#pBoard').onclick = () => { if (S.preview) addToBoard([S.preview]); };
 $('#pDel').onclick = () => { if (S.preview) deleteItems([S.preview]); };
 document.addEventListener('keydown', e => {
-  if (e.key==='Escape'){ if (S.preview) closePreview(); else if (S.tool !== 'move') setTool('move'); }
+  if (S.preview && document.activeElement.tagName !== 'INPUT' && !e.ctrlKey && !e.metaKey){
+    if (e.key === '+' || e.key === '=' || e.key === ';'){ pzCenterZoom(1.25); return; }
+    if (e.key === '-'){ pzCenterZoom(0.8); return; }
+    if (e.key === '0'){ pzFit(); return; }
+  }
+  if (e.key==='Escape'){
+    if (!$('#cmenu').hidden) hideCmenu(); else if (S.preview) closePreview(); else if (S.tool !== 'move') setTool('move');
+  }
+  if ((e.key==='Delete'||e.key==='Backspace') && S.view!=='library' && activeCirc!=null && !S.preview && document.activeElement.tagName!=='INPUT'){
+    circleAction('del'); return;  // 選んでいる丸を消す
+  }
   if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z' && !e.shiftKey && S.view!=='library' && !S.preview && document.activeElement.tagName!=='INPUT'){
     e.preventDefault(); undoInk(); return;
   }
@@ -1030,6 +1139,7 @@ const board = () => S.boards[S.board];
 function applyView(){
   world.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.s})`;
   world.style.setProperty('--inv', 1 / view.s);
+  renderCircles();  // つまみ・番号の大きさをズームに合わせる
 }
 function screenToWorld(cx, cy){ const r = stage.getBoundingClientRect(); return {x:(cx-r.left-view.x)/view.s, y:(cy-r.top-view.y)/view.s}; }
 function renderBoard(){
@@ -1048,7 +1158,7 @@ function renderBoard(){
     world.appendChild(d);
   });
   renderInk();
-  applyView();
+  applyView();  // 丸もここで描く
 }
 
 // ---------- ペン / 消しゴム (構造メモ用。線はボードごとに world 座標で保存し、絵には触らない) ----------
@@ -1093,24 +1203,75 @@ function eraseAt(p){
   if (changed){ b.strokes = out; renderInk(); }
   return changed;
 }
-const undos = new Map();  // ボード名 → 線の履歴 (Ctrl+Z 用、起動中だけ)
+// ---------- 頭身を測る丸 ({x, y: 中心, r: 半径, c: 色, n: 上から何個目か}、world 座標) ----------
+let activeCirc = null;
+function renderCircles(){
+  let svg = world.querySelector('#circ');
+  if (!svg){ svg = document.createElementNS(SVGNS, 'svg'); svg.id = 'circ'; world.appendChild(svg); }
+  else if (svg !== world.lastElementChild) world.appendChild(svg);  // 画像・ペンの線より手前
+  const cs = board()?.circles || [], inv = 1 / view.s;
+  if (activeCirc != null && !cs[activeCirc]) activeCirc = null;
+  svg.innerHTML = cs.map((c, i) => `<g data-ci="${i}" class="${i === activeCirc ? 'on' : ''}">
+    <circle class="ring" cx="${c.x}" cy="${c.y}" r="${c.r}" stroke="${esc(c.c)}"/>
+    <circle class="hit" cx="${c.x}" cy="${c.y}" r="${c.r}"/>
+    <text class="lbl" x="${c.x - c.r - 7*inv}" y="${c.y}" font-size="${15*inv}" fill="${esc(c.c)}" text-anchor="end" dominant-baseline="middle">${+c.n || 1}</text>
+    <circle class="hdl" cx="${c.x + c.r}" cy="${c.y}" r="${7*inv}" fill="${esc(c.c)}"><title>ドラッグで大きさを変える</title></circle>
+  </g>`).join('');
+}
+function hideCmenu(){ $('#cmenu').hidden = true; }
+function showCmenu(x, y){
+  const m = $('#cmenu'); m.hidden = false;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.min(x, innerWidth - w - 6) + 'px';
+  m.style.top = Math.min(y, innerHeight - h - 6) + 'px';
+}
+function circleAction(a){
+  const cs = board().circles || [], c = cs[activeCirc];
+  hideCmenu();
+  if (!c) return;
+  pushUndo();
+  if (a === 'down'){ cs.push({...c, y: r1(c.y + 2*c.r), n: (+c.n || 1) + 1}); activeCirc = cs.length - 1; }
+  else if (a === 'right'){ cs.push({...c, x: r1(c.x + 2*c.r)}); activeCirc = cs.length - 1; }
+  else { cs.splice(activeCirc, 1); activeCirc = null; }
+  renderCircles(); saveBoard();
+}
+stage.addEventListener('contextmenu', e => {
+  const g = e.target.closest?.('#circ g');
+  if (!g || S.tool === 'pen' || S.tool === 'eraser') return;
+  e.preventDefault();
+  activeCirc = +g.dataset.ci; renderCircles(); showCmenu(e.clientX, e.clientY);
+});
+$('#cmenu').onclick = e => { const b = e.target.closest('[data-cm]'); if (b) circleAction(b.dataset.cm); };
+document.addEventListener('pointerdown', e => { if (!e.target.closest('#cmenu')) hideCmenu(); }, true);
+stage.addEventListener('wheel', hideCmenu, {passive: true});
+
+// 線と丸の Ctrl+Z 用の履歴 (ボードごと、起動中だけ)
+const undos = new Map();
 const undoStack = () => { if (!undos.has(S.board)) undos.set(S.board, []); return undos.get(S.board); };
-function pushUndo(){ const st = undoStack(); st.push(JSON.stringify(board().strokes || [])); if (st.length > 100) st.shift(); }
+function pushUndo(){
+  const st = undoStack(), b = board();
+  st.push(JSON.stringify({strokes: b.strokes || [], circles: b.circles || []}));
+  if (st.length > 100) st.shift();
+}
 function undoInk(){
   const st = undoStack();
-  if (!st.length) return toast('戻せる線がありません');
-  board().strokes = JSON.parse(st.pop()); renderInk(); saveBoard();
+  if (!st.length) return toast('戻せる操作がありません');
+  const prev = JSON.parse(st.pop()), b = board();
+  b.strokes = prev.strokes; b.circles = prev.circles; activeCirc = null;
+  renderInk(); renderCircles(); saveBoard();
 }
 const HINTS = {
   move: 'ドラッグで移動 / 右下の■でサイズ変更 / 背景ドラッグでスクロール / ホイールでズーム / ライブラリの資料や画像をここにドロップで追加',
   pen: 'ドラッグで線を描く / Ctrl+Z で1つ戻す / ホイールでズーム / ホイールを押してドラッグでスクロール / Esc で移動に戻る',
   eraser: 'ドラッグでペンの線を消す(絵は消えません) / Ctrl+Z で1つ戻す / Esc で移動に戻る',
+  circle: '中心からドラッグで丸を描く / 丸の線をドラッグで移動・右の●で大きさ / 丸を右クリック→「下にコピー」で頭身を数える(左の数字=頭身) / Esc で移動に戻る',
 };
 function setTool(t){
   S.tool = t;
   document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
   stage.classList.toggle('draw-pen', t === 'pen');
   stage.classList.toggle('draw-eraser', t === 'eraser');
+  stage.classList.toggle('draw-circle', t === 'circle');
   if (t !== 'move'){ activeBi = null; world.querySelectorAll('.bi.active').forEach(x => x.classList.remove('active')); }
   stage.querySelector('.hint').textContent = HINTS[t];
 }
@@ -1164,6 +1325,25 @@ stage.addEventListener('pointerdown', e => {
     renderBoard(); saveBoard(); return;
   }
   stage.setPointerCapture(e.pointerId);
+  // 丸: 線をつかんで移動、右の●で大きさ (移動ツールと丸ツールのとき)
+  const cg = e.target.closest('#circ g');
+  if (cg && e.button === 0 && (S.tool === 'move' || S.tool === 'circle')){
+    const c = board().circles[+cg.dataset.ci];
+    pushUndo(); activeCirc = +cg.dataset.ci;
+    dragging = e.target.classList.contains('hdl') ? {mode:'cresize', c, changed:false}
+      : {mode:'cmove', c, sx:e.clientX, sy:e.clientY, ox:c.x, oy:c.y, changed:false};
+    renderCircles(); return;
+  }
+  if (activeCirc != null){ activeCirc = null; renderCircles(); }
+  if (S.tool === 'circle' && e.button === 0){  // 押した所を中心に、引いた長さが半径
+    const b = board(), p = screenToWorld(e.clientX, e.clientY);
+    b.circles ||= [];
+    pushUndo();
+    const c = {x: r1(p.x), y: r1(p.y), r: r1(50 / view.s), c: S.penColor, n: 1};
+    b.circles.push(c); activeCirc = b.circles.length - 1;
+    dragging = {mode:'cnew', c, sx:e.clientX, sy:e.clientY};
+    renderCircles(); return;
+  }
   if (S.tool !== 'move' && e.button === 0){  // ペン / 消しゴム
     const b = board(), p = screenToWorld(e.clientX, e.clientY);
     b.strokes ||= [];
@@ -1211,6 +1391,22 @@ stage.addEventListener('pointermove', e => {
     return;
   }
   if (dragging.mode === 'erase'){ if (eraseAt(screenToWorld(e.clientX, e.clientY))) dragging.changed = true; return; }
+  if (dragging.mode === 'cnew'){
+    const d = Math.hypot(e.clientX - dragging.sx, e.clientY - dragging.sy);
+    if (d > 6){ dragging.c.r = r1(d / view.s); renderCircles(); }  // ほぼ動かさなければ標準の大きさのまま
+    return;
+  }
+  if (dragging.mode === 'cresize'){
+    const p = screenToWorld(e.clientX, e.clientY), c = dragging.c;
+    c.r = r1(Math.max(4 / view.s, Math.hypot(p.x - c.x, p.y - c.y))); dragging.changed = true; renderCircles();
+    return;
+  }
+  if (dragging.mode === 'cmove'){
+    const c = dragging.c;
+    c.x = r1(dragging.ox + (e.clientX - dragging.sx) / view.s); c.y = r1(dragging.oy + (e.clientY - dragging.sy) / view.s);
+    dragging.changed = true; renderCircles();
+    return;
+  }
   const dx = e.clientX - dragging.sx, dy = e.clientY - dragging.sy;
   if (dragging.mode === 'pan'){ view.x = dragging.ox + dx; view.y = dragging.oy + dy; applyView(); }
   else if (dragging.mode === 'move'){
@@ -1224,7 +1420,8 @@ stage.addEventListener('pointermove', e => {
 const endDrag = () => {
   if (!dragging) return;
   if (dragging.mode === 'draw' && dragging.s.p.length === 1){ dragging.s.p.push([...dragging.s.p[0]]); renderInk(); }  // クリックだけなら点
-  if (dragging.mode === 'erase' && !dragging.changed) undoStack().pop();  // 何も消えなかったら履歴に残さない
+  // 何も変わらなかった操作 (消せなかった消しゴム・クリックで選んだだけの丸) は履歴に残さない
+  if ((dragging.mode === 'erase' || dragging.mode === 'cmove' || dragging.mode === 'cresize') && !dragging.changed) undoStack().pop();
   if (dragging.mode !== 'pan') saveBoard();
   dragging = null; stage.classList.remove('panning');
 };
@@ -1249,8 +1446,8 @@ function fit(){
 $('#fitBtn').onclick = fit;
 $('#grayBtn').onclick = () => { board().gray = !board().gray; renderBoard(); saveBoard(); };
 $('#clearBtn').onclick = () => {
-  pushUndo();  // 線は Ctrl+Z で戻せる
-  board().items = []; board().strokes = []; activeBi=null; renderBoard(); saveBoard();
+  pushUndo();  // 線と丸は Ctrl+Z で戻せる
+  board().items = []; board().strokes = []; board().circles = []; activeBi=null; activeCirc=null; renderBoard(); saveBoard();
   toast('ボードを空にしました(資料自体は残っています)');
 };
 $('#boardSel').onchange = e => { S.board = e.target.value; activeBi=null; renderAll(); setTimeout(fit, 50); };
